@@ -10,20 +10,36 @@ import { computeSummary, type CompletionEntry, type MetricsEntry, type AnyMetric
 //   classifyTask() -> routing decision -> mock token consumption -> metrics
 //                  -> savings calculation
 //
-// Cloud API token costs (what Anthropic charges per request):
-//   Simple docstring:              ~200 input + ~150 output  = ~350 tokens
-//   Commit message:                ~500 input + ~100 output  = ~600 tokens
-//   Unit test scaffold:            ~800 input + ~1500 output = ~2300 tokens
-//   CRUD endpoint:                 ~600 input + ~2000 output = ~2600 tokens
-//   Format conversion:             ~300 input + ~300 output  = ~600 tokens
-//   Code refactoring suggestion:   ~1500 input + ~2000 output = ~3500 tokens
-//   Bug analysis:                  ~2000 input + ~1500 output = ~3500 tokens
-//   File summarization:            ~3000 input + ~500 output  = ~3500 tokens
-//   Type annotations:              ~400 input + ~300 output  = ~700 tokens
-//   Boilerplate generation:        ~200 input + ~1000 output = ~1200 tokens
+// METHODOLOGY (Feb 2026, validated against measured data):
 //
-// When routed LOCAL, these tokens are FREE (zero API cost).
-// Savings = cloud_cost - local_cost, where local_cost ~ $0.
+// `cloudTokens` = OUTPUT tokens Claude would generate if handling directly.
+// These are the tokens SAVED when delegated locally — the primary cost driver,
+// since output tokens cost 5x more than input tokens on all Claude models.
+//
+// Measured output tokens per task type (from scripts/measure-tokens.mjs):
+//   Simple docstring:       ~50 output tokens   (measured: 50)
+//   Complex docstring:      ~200 output tokens   (measured: 201)
+//   Commit message:         ~50 output tokens    (measured: 51)
+//   Unit test scaffold:     ~500 output tokens   (measured: 489)
+//   CRUD endpoint:          ~275 output tokens   (measured: 275)
+//   Format conversion:      ~30 output tokens    (measured: 32)
+//   File summarization:     ~120 output tokens   (measured: 122)
+//   Type annotations:       ~135 output tokens   (measured: 134)
+//   Boilerplate generation: ~100 output tokens   (measured: 98)
+//   Refactoring:            ~400 output tokens   (estimated from complexity)
+//   Bug analysis:           ~300 output tokens   (estimated from complexity)
+//   API documentation:      ~400 output tokens   (estimated from complexity)
+//
+// Pricing (Anthropic, Feb 2026):
+//   Haiku 4.5:  $1 input / $5 output per M tokens
+//   Sonnet 4.5: $3 input / $15 output per M tokens
+//   Opus 4.6:   $5 input / $25 output per M tokens
+//
+// Cost per delegated task = avoided_output_tokens * output_price_per_token
+// Example: 500 output tokens on Sonnet = 500 * ($15/1M) = $0.0075
+//
+// NOTE: System prompt (~8,800 tokens) is paid in BOTH scenarios (Claude must
+// read the prompt to decide to delegate). The savings are output tokens only.
 // =============================================================================
 
 // ---------------------------------------------------------------------------
@@ -42,23 +58,23 @@ interface SessionPrompt {
  */
 const morningSession: SessionPrompt[] = [
   { prompt: 'show me the file tree of the src directory', expectedRoute: 'no_llm', cloudTokens: 0 },
-  { prompt: 'write a docstring for this function: async function fetchUser(id: string): Promise<User>', expectedRoute: 'local', cloudTokens: 350 },
-  { prompt: 'generate a commit message for adding user profile endpoint', expectedRoute: 'local', cloudTokens: 600 },
-  { prompt: 'convert this JSON config to YAML format', expectedRoute: 'local', cloudTokens: 600 },
-  { prompt: 'add type annotations to this function', expectedRoute: 'local', cloudTokens: 700 },
-  { prompt: 'write unit tests for the UserService.getById method', expectedRoute: 'local', cloudTokens: 2300 },
-  { prompt: 'generate a REST endpoint for creating new users', expectedRoute: 'local', cloudTokens: 2600 },
-  { prompt: 'write a docstring for class UserController', expectedRoute: 'local', cloudTokens: 350 },
-  { prompt: 'generate boilerplate for a new Express middleware', expectedRoute: 'local', cloudTokens: 1200 },
+  { prompt: 'write a docstring for this function: async function fetchUser(id: string): Promise<User>', expectedRoute: 'local', cloudTokens: 50 },   // measured: simple docstring ~50 output tokens
+  { prompt: 'generate a commit message for adding user profile endpoint', expectedRoute: 'local', cloudTokens: 50 },   // measured: commit msg ~51 output tokens
+  { prompt: 'convert this JSON config to YAML format', expectedRoute: 'local', cloudTokens: 30 },    // measured: format conversion ~32 output tokens
+  { prompt: 'add type annotations to this function', expectedRoute: 'local', cloudTokens: 135 },     // measured: type annotations ~134 output tokens
+  { prompt: 'write unit tests for the UserService.getById method', expectedRoute: 'local', cloudTokens: 500 },  // measured: test scaffold ~489 output tokens
+  { prompt: 'generate a REST endpoint for creating new users', expectedRoute: 'local', cloudTokens: 275 },      // measured: CRUD endpoint ~275 output tokens
+  { prompt: 'write a docstring for class UserController', expectedRoute: 'local', cloudTokens: 200 },           // measured: complex docstring ~201 output tokens
+  { prompt: 'generate boilerplate for a new Express middleware', expectedRoute: 'local', cloudTokens: 100 },     // measured: boilerplate ~98 output tokens
   { prompt: 'git status', expectedRoute: 'no_llm', cloudTokens: 0 },
-  { prompt: 'write a commit message for fixing the validation logic', expectedRoute: 'local', cloudTokens: 600 },
-  { prompt: 'add JSDoc comments to the auth module exports', expectedRoute: 'local', cloudTokens: 350 },
-  { prompt: 'summarize what this file does', expectedRoute: 'local', cloudTokens: 3500 },
-  { prompt: 'generate a TODO list from the FIXME comments in the codebase', expectedRoute: 'local', cloudTokens: 700 },
-  { prompt: 'convert this CSV data to JSON', expectedRoute: 'local', cloudTokens: 600 },
-  { prompt: 'write a docstring for async function validatePayment', expectedRoute: 'local', cloudTokens: 350 },
-  { prompt: 'generate unit tests for the PaymentService', expectedRoute: 'local', cloudTokens: 2300 },
-  { prompt: 'write a commit message for the payment validation feature', expectedRoute: 'local', cloudTokens: 600 },
+  { prompt: 'write a commit message for fixing the validation logic', expectedRoute: 'local', cloudTokens: 50 },  // measured: commit msg ~51
+  { prompt: 'add JSDoc comments to the auth module exports', expectedRoute: 'local', cloudTokens: 200 },          // complex docstring ~200
+  { prompt: 'summarize what this file does', expectedRoute: 'local', cloudTokens: 120 },                          // measured: file summary ~122 output tokens
+  { prompt: 'generate a TODO list from the FIXME comments in the codebase', expectedRoute: 'local', cloudTokens: 100 },  // ~100 output (short list)
+  { prompt: 'convert this CSV data to JSON', expectedRoute: 'local', cloudTokens: 30 },               // measured: format conversion ~32
+  { prompt: 'write a docstring for async function validatePayment', expectedRoute: 'local', cloudTokens: 200 },   // complex docstring ~200
+  { prompt: 'generate unit tests for the PaymentService', expectedRoute: 'local', cloudTokens: 500 },             // measured: test scaffold ~489
+  { prompt: 'write a commit message for the payment validation feature', expectedRoute: 'local', cloudTokens: 50 },  // measured: commit msg ~51
   { prompt: 'how many lines are in the src directory', expectedRoute: 'no_llm', cloudTokens: 0 },
   { prompt: 'architect a scalable microservices system for real-time notifications with event sourcing', expectedRoute: 'cloud', cloudTokens: 0 },
 ];
@@ -70,18 +86,18 @@ const morningSession: SessionPrompt[] = [
 const afternoonSession: SessionPrompt[] = [
   { prompt: 'list files in the project', expectedRoute: 'no_llm', cloudTokens: 0 },
   { prompt: 'what files are in the tests directory', expectedRoute: 'no_llm', cloudTokens: 0 },
-  { prompt: 'write docstrings for all exported functions in utils.ts', expectedRoute: 'local', cloudTokens: 700 },
-  { prompt: 'rename the variable "data" to "userData" throughout this file', expectedRoute: 'local', cloudTokens: 700 },
-  { prompt: 'add type hints to the Python helper scripts', expectedRoute: 'local', cloudTokens: 700 },
-  { prompt: 'generate a commit message for the refactoring changes', expectedRoute: 'local', cloudTokens: 600 },
-  { prompt: 'convert the old callback-style code to async/await', expectedRoute: 'local', cloudTokens: 2600 },
-  { prompt: 'write unit test stubs for the new async functions', expectedRoute: 'local', cloudTokens: 2300 },
+  { prompt: 'write docstrings for all exported functions in utils.ts', expectedRoute: 'local', cloudTokens: 400 },  // multiple docstrings ~4x100
+  { prompt: 'rename the variable "data" to "userData" throughout this file', expectedRoute: 'local', cloudTokens: 400 },  // refactoring ~400 output
+  { prompt: 'add type hints to the Python helper scripts', expectedRoute: 'local', cloudTokens: 135 },  // measured: type annotations ~134
+  { prompt: 'generate a commit message for the refactoring changes', expectedRoute: 'local', cloudTokens: 50 },   // measured: commit msg ~51
+  { prompt: 'convert the old callback-style code to async/await', expectedRoute: 'local', cloudTokens: 400 },     // refactoring ~400 output
+  { prompt: 'write unit test stubs for the new async functions', expectedRoute: 'local', cloudTokens: 500 },      // measured: test scaffold ~489
   { prompt: 'git log', expectedRoute: 'no_llm', cloudTokens: 0 },
-  { prompt: 'summarize this file for me please', expectedRoute: 'local', cloudTokens: 3500 },
-  { prompt: 'generate API documentation for the user endpoints', expectedRoute: 'local', cloudTokens: 2600 },
-  { prompt: 'write a commit message for updating the API docs', expectedRoute: 'local', cloudTokens: 600 },
-  { prompt: 'find potential bugs in this error handling code', expectedRoute: 'local', cloudTokens: 3500 },
-  { prompt: 'generate a config template for the new feature flags', expectedRoute: 'local', cloudTokens: 1200 },
+  { prompt: 'summarize this file for me please', expectedRoute: 'local', cloudTokens: 120 },           // measured: file summary ~122
+  { prompt: 'generate API documentation for the user endpoints', expectedRoute: 'local', cloudTokens: 400 },      // API docs ~400 output
+  { prompt: 'write a commit message for updating the API docs', expectedRoute: 'local', cloudTokens: 50 },        // measured: commit msg ~51
+  { prompt: 'find potential bugs in this error handling code', expectedRoute: 'local', cloudTokens: 300 },         // bug analysis ~300 output
+  { prompt: 'generate a config template for the new feature flags', expectedRoute: 'local', cloudTokens: 100 },   // measured: boilerplate ~98
   { prompt: 'debug this race condition in the WebSocket handler that causes messages to be delivered out of order across multiple connected clients', expectedRoute: 'cloud', cloudTokens: 0 },
 ];
 
@@ -90,15 +106,15 @@ const afternoonSession: SessionPrompt[] = [
  * Simulates rapid-fire small fixes and one-liners.
  */
 const quickFixes: SessionPrompt[] = [
-  { prompt: 'write a docstring for function calculateTax', expectedRoute: 'local', cloudTokens: 350 },
-  { prompt: 'generate a commit message for fixing the tax calculation bug', expectedRoute: 'local', cloudTokens: 600 },
-  { prompt: 'add a TODO comment about the deprecated API endpoint', expectedRoute: 'local', cloudTokens: 200 },
-  { prompt: 'convert this YAML config to JSON', expectedRoute: 'local', cloudTokens: 600 },
-  { prompt: 'write a regex to validate email addresses', expectedRoute: 'local', cloudTokens: 400 },
-  { prompt: 'generate type annotations for the config object', expectedRoute: 'local', cloudTokens: 700 },
-  { prompt: 'write a commit message for adding input validation', expectedRoute: 'local', cloudTokens: 600 },
-  { prompt: 'generate a simple Express route handler for health check', expectedRoute: 'local', cloudTokens: 1200 },
-  { prompt: 'write docstring for class OrderProcessor', expectedRoute: 'local', cloudTokens: 350 },
+  { prompt: 'write a docstring for function calculateTax', expectedRoute: 'local', cloudTokens: 50 },   // measured: simple docstring ~50
+  { prompt: 'generate a commit message for fixing the tax calculation bug', expectedRoute: 'local', cloudTokens: 50 },  // measured: commit msg ~51
+  { prompt: 'add a TODO comment about the deprecated API endpoint', expectedRoute: 'local', cloudTokens: 20 },          // tiny output ~20
+  { prompt: 'convert this YAML config to JSON', expectedRoute: 'local', cloudTokens: 30 },              // measured: format conversion ~32
+  { prompt: 'write a regex to validate email addresses', expectedRoute: 'local', cloudTokens: 50 },     // small code snippet ~50
+  { prompt: 'generate type annotations for the config object', expectedRoute: 'local', cloudTokens: 135 },  // measured: type annotations ~134
+  { prompt: 'write a commit message for adding input validation', expectedRoute: 'local', cloudTokens: 50 },  // measured: commit msg ~51
+  { prompt: 'generate a simple Express route handler for health check', expectedRoute: 'local', cloudTokens: 100 },  // measured: boilerplate ~98
+  { prompt: 'write docstring for class OrderProcessor', expectedRoute: 'local', cloudTokens: 200 },     // complex docstring ~200
   { prompt: 'show me the git diff names', expectedRoute: 'no_llm', cloudTokens: 0 },
 ];
 
@@ -218,25 +234,21 @@ describe('Token Savings Simulation', () => {
   describe('2. Token savings calculations per session', () => {
     it('Morning session: total saveable tokens are correctly summed', () => {
       const saveable = computeSaveableTokens(morningSession);
-      // Sum of cloudTokens for all non-cloud prompts:
-      // 0 + 350 + 600 + 600 + 700 + 2300 + 2600 + 350 + 1200 + 0 + 600 + 350
-      // + 3500 + 700 + 600 + 350 + 2300 + 600 + 0 = 17700
-      // The cloud prompt (design database schema) has cloudTokens: 0, so it does
-      // not add to the saveable total, but it also doesn't count as saved tokens.
-      expect(saveable).toBe(17700);
+      // Sum of output tokens for all non-cloud prompts:
+      // 0+50+50+30+135+500+275+200+100+0+50+200+120+100+30+200+500+50+0+0 = 2590
+      expect(saveable).toBe(2590);
     });
 
     it('Afternoon session: total saveable tokens are correctly summed', () => {
       const saveable = computeSaveableTokens(afternoonSession);
-      // 0 + 0 + 700 + 700 + 700 + 600 + 2600 + 2300 + 0 + 3500 + 2600 + 600
-      // + 3500 + 1200 + 0 = 19000
-      expect(saveable).toBe(19000);
+      // 0+0+400+400+135+50+400+500+0+120+400+50+300+100+0 = 2855
+      expect(saveable).toBe(2855);
     });
 
     it('Quick fixes session: total saveable tokens are correctly summed', () => {
       const saveable = computeSaveableTokens(quickFixes);
-      // 350 + 600 + 200 + 600 + 400 + 700 + 600 + 1200 + 350 + 0 = 5000
-      expect(saveable).toBe(5000);
+      // 50+50+20+30+50+135+50+100+200+0 = 685
+      expect(saveable).toBe(685);
     });
 
     it('Total savings across all sessions combined', () => {
@@ -245,8 +257,8 @@ describe('Token Savings Simulation', () => {
       const quickSaveable = computeSaveableTokens(quickFixes);
       const totalSaveable = morningSaveable + afternoonSaveable + quickSaveable;
 
-      expect(totalSaveable).toBe(17700 + 19000 + 5000);
-      expect(totalSaveable).toBe(41700);
+      expect(totalSaveable).toBe(2590 + 2855 + 685);
+      expect(totalSaveable).toBe(6130);
     });
 
     it('Percentage of tasks routed locally per session', () => {
@@ -277,17 +289,17 @@ describe('Token Savings Simulation', () => {
       const morningTotal = computeTotalCloudTokens(morningSession);
       const morningSaveable = computeSaveableTokens(morningSession);
       expect(morningTotal).toBe(morningSaveable); // all token-using tasks route local
-      expect(morningTotal).toBe(17700);
+      expect(morningTotal).toBe(2590);
 
       const afternoonTotal = computeTotalCloudTokens(afternoonSession);
       const afternoonSaveable = computeSaveableTokens(afternoonSession);
       expect(afternoonTotal).toBe(afternoonSaveable);
-      expect(afternoonTotal).toBe(19000);
+      expect(afternoonTotal).toBe(2855);
 
       const quickTotal = computeTotalCloudTokens(quickFixes);
       const quickSaveable = computeSaveableTokens(quickFixes);
       expect(quickTotal).toBe(quickSaveable);
-      expect(quickTotal).toBe(5000);
+      expect(quickTotal).toBe(685);
     });
   });
 
@@ -295,35 +307,43 @@ describe('Token Savings Simulation', () => {
   // 3. COST SAVINGS AT DIFFERENT PRICE POINTS
   // ===========================================================================
 
-  describe('3. Cost savings at different price points', () => {
-    const totalSaveableTokens = 41700; // verified above
+  describe('3. Cost savings at different output price points', () => {
+    // These are OUTPUT tokens saved. Output pricing (Feb 2026):
+    //   Haiku 4.5:  $5/M output tokens
+    //   Sonnet 4.5: $15/M output tokens
+    //   Opus 4.6:   $25/M output tokens
+    const totalSaveableTokens = 6130; // verified above (output tokens only)
 
-    it('At $3/M tokens (Haiku pricing): saves $0.13', () => {
-      const costPerMillion = 3;
+    it('At $5/M output tokens (Haiku 4.5): saves $0.03', () => {
+      const costPerMillion = 5;
       const savings = (totalSaveableTokens / 1_000_000) * costPerMillion;
       const rounded = Math.round(savings * 100) / 100;
-      expect(rounded).toBe(0.13);
+      expect(rounded).toBe(0.03);
     });
 
-    it('At $8/M tokens (default / blended pricing): saves $0.33', () => {
-      const costPerMillion = 8;
-      const savings = (totalSaveableTokens / 1_000_000) * costPerMillion;
-      const rounded = Math.round(savings * 100) / 100;
-      expect(rounded).toBe(0.33);
-    });
-
-    it('At $15/M tokens (Sonnet pricing): saves $0.63', () => {
+    it('At $15/M output tokens (Sonnet 4.5): saves $0.09', () => {
       const costPerMillion = 15;
       const savings = (totalSaveableTokens / 1_000_000) * costPerMillion;
       const rounded = Math.round(savings * 100) / 100;
-      expect(rounded).toBe(0.63);
+      expect(rounded).toBe(0.09);
     });
 
-    it('At $75/M tokens (Opus pricing): saves $3.13', () => {
-      const costPerMillion = 75;
+    it('At $25/M output tokens (Opus 4.6): saves $0.15', () => {
+      const costPerMillion = 25;
       const savings = (totalSaveableTokens / 1_000_000) * costPerMillion;
       const rounded = Math.round(savings * 100) / 100;
-      expect(rounded).toBe(3.13);
+      expect(rounded).toBe(0.15);
+    });
+
+    it('At $25/M with 20x daily scale (Opus): saves $1.02/day', () => {
+      // One "day" = 3 sessions in our simulation. Scale to 20 sessions.
+      const costPerMillion = 25;
+      const dailyTokens = totalSaveableTokens * (20 / 3);
+      // 6130 * 6.667 = 40,867 tokens/day
+      const dailySavings = (dailyTokens / 1_000_000) * costPerMillion;
+      // 40867 / 1M * 25 = 1.02
+      const rounded = Math.round(dailySavings * 100) / 100;
+      expect(rounded).toBe(1.02);
     });
   });
 
@@ -342,7 +362,7 @@ describe('Token Savings Simulation', () => {
         .reduce((sum, s) => sum + s.cloudTokens, 0);
 
       expect(summary.total_local_tokens).toBe(expectedTokens);
-      expect(summary.total_local_tokens).toBe(17700);
+      expect(summary.total_local_tokens).toBe(2590);
     });
 
     it('returns correct local_tasks count', () => {
@@ -367,8 +387,8 @@ describe('Token Savings Simulation', () => {
 
       const summary = computeSummary(allEntries);
 
-      // 41700 tokens at $8/M = (41700 / 1_000_000) * 8 = 0.3336 -> rounds to 0.33
-      expect(summary.estimated_cost_saved).toBe(0.33);
+      // 6130 tokens at $8/M = (6130 / 1_000_000) * 8 = 0.04904 -> rounds to 0.05
+      expect(summary.estimated_cost_saved).toBe(0.05);
     });
 
     it('multiple sessions produce correct session count', () => {
@@ -545,36 +565,36 @@ describe('Token Savings Simulation', () => {
     });
 
     it('Projected monthly savings at 20 sessions/day, 22 work days', () => {
-      // One "day" of sessions = morning + afternoon + quick fixes = 41700 tokens saved
-      const tokensPerDay = 41700;
+      // One "day" of sessions = morning + afternoon + quick fixes = 6130 output tokens saved
+      const tokensPerDay = 6130;
       const sessionsPerDay = 3; // our 3 sessions above represent one day's work
       const workDays = 22;
 
       // Tokens saved per month (one developer)
       const tokensPerMonth = tokensPerDay * (20 / sessionsPerDay) * workDays;
-      // 41700 * (20/3) * 22 = 41700 * 6.667 * 22 = 6,115,600
-      // More precisely: 41700 * 20 * 22 / 3 = 18,340,000 / 3 = 6,113,333.33
+      // 6130 * (20/3) * 22 = 6130 * 6.667 * 22 ≈ 899,067
+      // More precisely: 6130 * 20 * 22 / 3 = 2,697,200 / 3 = 899,066.67
 
-      // Cost savings at different price points
-      const savingsAt8 = (tokensPerMonth / 1_000_000) * 8;
-      const savingsAt15 = (tokensPerMonth / 1_000_000) * 15;
-      const savingsAt75 = (tokensPerMonth / 1_000_000) * 75;
+      // Cost savings at OUTPUT token price points (Feb 2026)
+      const savingsAt5 = (tokensPerMonth / 1_000_000) * 5;    // Haiku 4.5 output
+      const savingsAt15 = (tokensPerMonth / 1_000_000) * 15;   // Sonnet 4.5 output
+      const savingsAt25 = (tokensPerMonth / 1_000_000) * 25;   // Opus 4.6 output
 
-      // At $8/M: ~$48.91/month
-      expect(savingsAt8).toBeGreaterThan(40);
-      expect(savingsAt8).toBeLessThan(60);
+      // At $5/M output (Haiku): ~$4.50/month
+      expect(savingsAt5).toBeGreaterThan(3);
+      expect(savingsAt5).toBeLessThan(6);
 
-      // At $15/M: ~$91.70/month
-      expect(savingsAt15).toBeGreaterThan(80);
-      expect(savingsAt15).toBeLessThan(110);
+      // At $15/M output (Sonnet): ~$13.49/month
+      expect(savingsAt15).toBeGreaterThan(11);
+      expect(savingsAt15).toBeLessThan(16);
 
-      // At $75/M: ~$458.50/month
-      expect(savingsAt75).toBeGreaterThan(400);
-      expect(savingsAt75).toBeLessThan(550);
+      // At $25/M output (Opus): ~$22.48/month
+      expect(savingsAt25).toBeGreaterThan(19);
+      expect(savingsAt25).toBeLessThan(26);
 
       // Verify the tokens/month is in a reasonable range
-      expect(tokensPerMonth).toBeGreaterThan(5_000_000);
-      expect(tokensPerMonth).toBeLessThan(7_000_000);
+      expect(tokensPerMonth).toBeGreaterThan(800_000);
+      expect(tokensPerMonth).toBeLessThan(1_000_000);
     });
   });
 });
