@@ -48,16 +48,6 @@ function loadConfig(): Config {
   return defaults;
 }
 
-// Prefixes that trigger local handling
-const LOCAL_PREFIXES = [
-  'cs ask ',
-  'ask local ',
-  '/claudesaver:ask ',
-  'cs status',
-  'cs settings',
-  'cs reset',
-];
-
 function matchCommand(prompt: string): { command: string; args: string } | null {
   const trimmed = prompt.trim();
   const lower = trimmed.toLowerCase();
