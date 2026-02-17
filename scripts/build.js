@@ -48,12 +48,6 @@ const dashboardBuild = {
   outfile: 'scripts/dashboard-server.cjs',
 };
 
-const cliBuild = {
-  ...sharedOptions,
-  entryPoints: ['src/cli.ts'],
-  outfile: 'scripts/cli.cjs',
-};
-
 async function copyDashboardHTML() {
   const src = path.resolve('src/dashboard/dashboard.html');
   const dest = path.resolve('scripts/dashboard.html');
@@ -66,9 +60,8 @@ async function build() {
     const hookCtx1 = await esbuild.context(sessionStartBuild);
     const hookCtx2 = await esbuild.context(subagentStopBuild);
     const dashCtx = await esbuild.context(dashboardBuild);
-    const cliCtx = await esbuild.context(cliBuild);
     const promptCtx = await esbuild.context(promptSubmitBuild);
-    await Promise.all([mcpCtx.watch(), hookCtx1.watch(), hookCtx2.watch(), dashCtx.watch(), cliCtx.watch(), promptCtx.watch()]);
+    await Promise.all([mcpCtx.watch(), hookCtx1.watch(), hookCtx2.watch(), dashCtx.watch(), promptCtx.watch()]);
     await copyDashboardHTML();
     console.log('Watching for changes...');
   } else {
@@ -77,7 +70,6 @@ async function build() {
       esbuild.build(sessionStartBuild),
       esbuild.build(subagentStopBuild),
       esbuild.build(dashboardBuild),
-      esbuild.build(cliBuild),
       esbuild.build(promptSubmitBuild),
     ]);
     await copyDashboardHTML();

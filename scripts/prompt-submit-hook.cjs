@@ -89,17 +89,62 @@ function runLocalClaude(prompt, config) {
     return `[Local model error: ${msg}]`;
   }
 }
-function runCLICommand(command) {
+function runStatus(config) {
   try {
-    const cliPath = path.join(__dirname, "cli.cjs");
-    const result = (0, import_child_process.execFileSync)("node", [cliPath, command], {
-      timeout: 1e4,
-      encoding: "utf-8"
-    });
-    return result.trim();
+    const configDir = path.join(os.homedir(), ".claude-saver");
+    const metricsPath = path.join(configDir, "metrics.jsonl");
+    let ollamaStatus = "unknown";
+    try {
+      (0, import_child_process.execFileSync)("curl", [
+        "-s",
+        "-o",
+        "/dev/null",
+        "-w",
+        "%{http_code}",
+        "--max-time",
+        "2",
+        `${config.ollama.base_url}/api/tags`
+      ], { encoding: "utf-8", timeout: 5e3 });
+      ollamaStatus = "connected";
+    } catch {
+      ollamaStatus = "not available";
+    }
+    let totalLocal = 0;
+    let delegations = 0;
+    if (fs.existsSync(metricsPath)) {
+      const lines = fs.readFileSync(metricsPath, "utf-8").split("\n").filter(Boolean);
+      for (const line of lines) {
+        try {
+          const entry = JSON.parse(line);
+          totalLocal += entry.tokens_local ?? entry.local_tokens ?? 0;
+          delegations++;
+        } catch {
+        }
+      }
+    }
+    return [
+      `Ollama: ${ollamaStatus}`,
+      `Model: ${config.ollama.default_model}`,
+      `Delegation level: ${config.delegation_level}`,
+      `Total delegations: ${delegations}`,
+      `Total local tokens: ${totalLocal.toLocaleString()}`
+    ].join("\n");
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    return `[CLI error: ${msg}]`;
+    return `[Status error: ${msg}]`;
+  }
+}
+function runReset() {
+  try {
+    const metricsPath = path.join(os.homedir(), ".claude-saver", "metrics.jsonl");
+    if (fs.existsSync(metricsPath)) {
+      fs.writeFileSync(metricsPath, "", "utf-8");
+      return "Metrics history cleared.";
+    }
+    return "No metrics file found \u2014 nothing to reset.";
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return `[Reset error: ${msg}]`;
   }
 }
 async function readStdin() {
@@ -161,11 +206,11 @@ async function main() {
       break;
     }
     case "status": {
-      result = runCLICommand("status");
+      result = runStatus(config);
       break;
     }
     case "reset": {
-      result = runCLICommand("reset");
+      result = runReset();
       break;
     }
     default:

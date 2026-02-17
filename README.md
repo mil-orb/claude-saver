@@ -4,7 +4,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Node](https://img.shields.io/badge/node-%3E%3D18-brightgreen.svg)](https://nodejs.org/)
 
-**Run coding tasks on your local GPU. Save tokens. Keep your code private.**
+**Run coding tasks on your local GPU. Save tokens. Use both models in one session.**
 
 Claude-Saver is a [Claude Code](https://docs.anthropic.com/en/docs/claude-code) plugin that routes routine work to local [Ollama](https://ollama.com/) models running on your machine. Docstrings, commit messages, boilerplate, format conversions, file analysis, and simple code generation all run locally — while architecture decisions, debugging, and security review stay on the cloud API where they belong.
 
@@ -14,13 +14,9 @@ The result: lower API bills, faster responses for simple tasks, and file content
 
 ## Why Claude-Saver?
 
-**Save money.** Every token processed locally is a token you don't pay Anthropic for. A typical workday with 43 delegated tasks saves ~7K cloud output tokens — that's ~160K tokens/month at Opus rates ($25/M output), netting real dollar savings after overhead.
+**Save money.** Every token processed locally is a token you don't pay Anthropic for. Docstrings, commit messages, boilerplate, format conversions, file summaries — these routine tasks add up fast. Route them to your local GPU and keep your API budget for the work that actually needs it.
 
-**Honest accounting.** Unlike naive "tokens saved" counters, Claude-Saver tracks the real cost — including the cloud overhead of making tool calls (the JSON wrapper Claude generates + the result it reads back). The dashboard shows net savings after subtracting wrapper costs, so you always know the true picture. Maximum theoretical efficiency is 74% — the other 26% is unavoidable MCP protocol overhead.
-
-**Use your local model without leaving Claude Code.** Run `/claudesaver:ask` to send any prompt directly to your local Ollama model — right inside your Claude Code session. No terminal swapping, no copy-pasting between windows. Your local GPU is one command away.
-
-**Keep code private.** The `claudesaver_fs` tools return only metadata (file trees, line counts, git status) — never raw file contents. When you use `claudesaver_analyze_file`, the file is read and analyzed entirely on your local machine. Nothing is sent to any cloud API.
+**Ask questions for free.** Type `cs ask` followed by any question — a hook intercepts it before Claude even sees it, runs the query on your local Ollama model, and hands back the answer. The heavy lifting is 100% local; Claude just displays the result. No terminal swapping, no copy-pasting. Your local GPU is one command away.
 
 **Nothing breaks.** Claude-Saver is fail-open. If Ollama is down, if a model isn't loaded, if anything goes wrong — Claude works exactly as before. The plugin never blocks your session.
 
@@ -154,44 +150,52 @@ The dashboard auto-refreshes every 10 seconds and runs entirely on your machine.
 
 ## Ask Your Local Model — Without Leaving Claude Code
 
-Every question you type in Claude Code costs API tokens. A simple "what does this function do?" can burn 500+ output tokens at $15-25/M. With **`/claudesaver:ask`**, that same question runs on your local GPU instead — **zero API cost, zero cloud contact, instant response**.
+Every question you type in Claude Code costs API tokens. A simple "what does this function do?" can burn 500+ output tokens at $15-25/M. With Claude-Saver, that same question runs on your local GPU instead.
+
+### Quick shorthand (hook-intercepted, near-zero cost)
 
 ```
-/claudesaver:ask what does this regex do: /^(?:[a-z0-9]+(?:-[a-z0-9]+)*)$/
+cs ask what does this regex do: /^(?:[a-z0-9]+(?:-[a-z0-9]+)*)$/
 ```
 
-Your local model answers right in the Claude Code interface. No terminal switching, no copy-pasting between windows, no context loss. The response shows the model name, token count, and latency so you always know what happened.
+Type `cs ask` followed by your question directly in Claude Code. The **UserPromptSubmit hook** intercepts this before Claude processes it, spawns a local Claude Code instance pointed at Ollama (`ANTHROPIC_BASE_URL=http://localhost:11434`), and returns the answer. The heavy lifting is 100% local — Claude just relays the pre-computed result for ~50 output tokens instead of generating the answer itself.
+
+Other hook shortcuts:
+- `cs status` — health check and savings summary, handled locally
+- `cs reset` — clear metrics history
+
+### Slash command (uses some API tokens)
+
+```
+/claudesaver:ask explain the difference between mutex and semaphore
+```
+
+This routes through Claude's MCP tool system — still runs locally on Ollama, but Claude orchestrates the call, using more API tokens than the hook shorthand.
 
 **Why this matters:**
 - **Save tokens on simple questions** — "what's the syntax for X?", "explain this error", "convert this to YAML" — these don't need a $25/M model
 - **Save context window** — questions answered locally don't add to Claude's conversation history, keeping your context window free for complex work
-- **Keep code private** — sensitive code, credentials in config files, proprietary logic — ask about them locally without anything leaving your machine
 - **Compare answers** — ask the same question to both your local model and Claude to see when local is good enough
-
-Think of it as having two models open side-by-side, but in the same terminal.
 
 ---
 
 ## Commands
 
+### Hook shortcuts (near-zero tokens — intercepted before Claude processes)
+
+| Shorthand | What happens |
+|---|---|
+| `cs ask <prompt>` | Runs prompt on Ollama via local `claude -p` — Claude just relays the result (~50 tokens) |
+| `cs status` | Runs status check locally, returns pre-computed output |
+| `cs reset` | Clears metrics history locally |
+
+### Slash commands (uses API tokens — Claude orchestrates)
+
 | Command | Description |
 |---|---|
-| `/claudesaver:ask` | Run any prompt on your local model — zero API tokens, zero cloud contact |
+| `/claudesaver:ask` | Run any prompt on your local model via MCP tool call |
 | `/claudesaver:settings` | Interactive dashboard — view status, change level, model, metrics, reset savings |
 | `/claudesaver:dashboard` | Open the web metrics dashboard in your browser |
-
-### CLI (Zero Tokens)
-
-Slash commands still cost API tokens because Claude processes them. For truly zero-cost management, use the standalone CLI directly in your terminal:
-
-```bash
-node scripts/cli.cjs                  # Interactive settings menu
-node scripts/cli.cjs status           # Quick health + savings check
-node scripts/cli.cjs settings         # Change level, model, toggle metrics
-node scripts/cli.cjs ask "prompt"     # Send prompt to Ollama directly
-node scripts/cli.cjs dashboard        # Open web dashboard
-node scripts/cli.cjs reset            # Clear metrics history
-```
 
 ---
 
@@ -220,20 +224,17 @@ node scripts/cli.cjs reset            # Clear metrics history
 | `claudesaver_config` | Read, update, or reset plugin settings (dot-notation paths) |
 | `claudesaver_models` | List available Ollama models, check health |
 | `claudesaver_level` | Get, set, or describe delegation levels (0-5) |
-| `claudesaver_metrics` | View savings metrics (with honest overhead tracking), reset history |
+| `claudesaver_metrics` | View savings metrics and overhead tracking, reset history |
 
 ---
 
-## Privacy
+## How Data Flows
 
-Claude-Saver keeps your code on your machine:
-
-- **`claudesaver_fs`** returns only metadata — file names, sizes, line counts, git status. Never file contents.
-- **`claudesaver_fs_preview`** extracts structure (function names, imports, exports) without sending raw source.
-- **`claudesaver_analyze_file`** reads the file locally and processes it with your local Ollama model. The file never leaves your machine.
-- **`claudesaver_complete`** and **`claudesaver_generate_code`** communicate only with your local Ollama instance.
-- **Metrics** are stored locally in `~/.claude-saver/metrics.jsonl`. No telemetry, no phone-home, no external reporting.
-- **The dashboard** runs on `127.0.0.1` only — not accessible from outside your machine.
+- **`claudesaver_fs`** returns only metadata (file names, sizes, line counts). Raw file contents are never sent to the cloud.
+- **`claudesaver_analyze_file`** reads and processes files locally on Ollama. The *analysis result* is returned to Claude as tool output, so a summary does flow through the cloud API — but the raw file contents stay local.
+- **`cs ask` hook shortcuts** are the most private path — the question and answer are handled entirely by your local model. Claude only sees a short relay message (~50 tokens).
+- **Metrics** are stored locally in `~/.claude-saver/metrics.jsonl`. No telemetry, no phone-home.
+- **The dashboard** runs on `127.0.0.1` only.
 
 ---
 
@@ -387,13 +388,14 @@ The E2E suite spawns the actual `.cjs` bundles the way Claude Code does — test
 .claude-plugin/           Plugin manifest
 .mcp.json                 MCP server configuration
 agents/                   local-worker subagent
-commands/                 Slash commands (9 commands)
+commands/                 Slash commands (ask, settings, dashboard)
 config/                   Default routing rules
-hooks/                    hooks.json (SessionStart + SubagentStop)
+hooks/                    hooks.json (SessionStart + UserPromptSubmit + SubagentStop)
 scripts/
   build.js                esbuild bundler
-  mcp-server.cjs          Compiled MCP server (10 tools)
+  mcp-server.cjs          Compiled MCP server (9 tools)
   session-start-hook.cjs  SessionStart hook (health + welcome + model warm-up)
+  prompt-submit-hook.cjs  UserPromptSubmit hook (cs ask / cs status / cs reset)
   subagent-stop-hook.cjs  SubagentStop hook (metrics logging)
   dashboard-server.cjs    Dashboard web server
   dashboard.html          Dashboard UI
