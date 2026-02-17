@@ -11,6 +11,8 @@ export interface MetricsEntry {
   session_id: string;
 }
 
+export type QualityStatus = 'accepted' | 'retried_accepted' | 'escalated';
+
 export interface CompletionEntry {
   type: 'completion';
   timestamp: string;
@@ -21,6 +23,12 @@ export interface CompletionEntry {
   session_id: string;
   /** Estimated cloud tokens consumed by the tool-call wrapper overhead */
   cloud_overhead_tokens?: number;
+  /** Actual output token count from Ollama */
+  output_tokens?: number;
+  /** Light pass quality gate outcome */
+  quality_status?: QualityStatus;
+  /** Number of attempts before acceptance/escalation */
+  attempt_count?: number;
 }
 
 export type AnyMetricsEntry = MetricsEntry | CompletionEntry;

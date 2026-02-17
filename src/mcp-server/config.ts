@@ -2,6 +2,34 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 
+export interface LightPassConfig {
+  enabled: boolean;
+  max_input_tokens: number;
+  max_output_tokens: number;
+  max_wall_time_ms: number;
+  temperature: number;
+  allow_retry: boolean;
+  retry_max_input_tokens: number;
+  retry_max_output_tokens: number;
+}
+
+export interface QualityGateConfig {
+  enabled: boolean;
+  check_completeness: boolean;
+  check_code_parse: boolean;
+  check_scope: boolean;
+  check_hedging: boolean;
+  check_proportionality: boolean;
+  min_output_length: number;
+  max_output_length: number;
+}
+
+export interface ContextPipelineConfig {
+  max_files: number;
+  max_lines_per_file: number;
+  max_diff_lines: number;
+}
+
 export interface ClaudeSaverConfig {
   delegation_level: 0 | 1 | 2 | 3 | 4 | 5;
   _previous_level?: number; // Used by local mode toggle to remember the level to restore
@@ -30,6 +58,9 @@ export interface ClaudeSaverConfig {
     show_level: boolean;
     cost_per_million_tokens: number;
   };
+  light_pass: LightPassConfig;
+  quality_gate: QualityGateConfig;
+  context_pipeline: ContextPipelineConfig;
 }
 
 const DEFAULT_CONFIG: ClaudeSaverConfig = {
@@ -58,6 +89,31 @@ const DEFAULT_CONFIG: ClaudeSaverConfig = {
     show_models: true,
     show_level: true,
     cost_per_million_tokens: 8,
+  },
+  light_pass: {
+    enabled: true,
+    max_input_tokens: 1500,
+    max_output_tokens: 600,
+    max_wall_time_ms: 5000,
+    temperature: 0.1,
+    allow_retry: true,
+    retry_max_input_tokens: 3000,
+    retry_max_output_tokens: 1200,
+  },
+  quality_gate: {
+    enabled: true,
+    check_completeness: true,
+    check_code_parse: true,
+    check_scope: true,
+    check_hedging: true,
+    check_proportionality: true,
+    min_output_length: 20,
+    max_output_length: 10000,
+  },
+  context_pipeline: {
+    max_files: 3,
+    max_lines_per_file: 120,
+    max_diff_lines: 200,
   },
 };
 

@@ -2980,7 +2980,7 @@ var require_compile = __commonJS({
       const schOrFunc = root.refs[ref];
       if (schOrFunc)
         return schOrFunc;
-      let _sch = resolve2.call(this, root, ref);
+      let _sch = resolve3.call(this, root, ref);
       if (_sch === void 0) {
         const schema = (_a = root.localRefs) === null || _a === void 0 ? void 0 : _a[ref];
         const { schemaId } = this.opts;
@@ -3007,7 +3007,7 @@ var require_compile = __commonJS({
     function sameSchemaEnv(s1, s2) {
       return s1.schema === s2.schema && s1.root === s2.root && s1.baseId === s2.baseId;
     }
-    function resolve2(root, ref) {
+    function resolve3(root, ref) {
       let sch;
       while (typeof (sch = this.refs[ref]) == "string")
         ref = sch;
@@ -3222,8 +3222,8 @@ var require_utils = __commonJS({
       }
       return ind;
     }
-    function removeDotSegments(path5) {
-      let input = path5;
+    function removeDotSegments(path7) {
+      let input = path7;
       const output = [];
       let nextSlash = -1;
       let len = 0;
@@ -3422,8 +3422,8 @@ var require_schemes = __commonJS({
         wsComponent.secure = void 0;
       }
       if (wsComponent.resourceName) {
-        const [path5, query] = wsComponent.resourceName.split("?");
-        wsComponent.path = path5 && path5 !== "/" ? path5 : void 0;
+        const [path7, query] = wsComponent.resourceName.split("?");
+        wsComponent.path = path7 && path7 !== "/" ? path7 : void 0;
         wsComponent.query = query;
         wsComponent.resourceName = void 0;
       }
@@ -3582,7 +3582,7 @@ var require_fast_uri = __commonJS({
       }
       return uri;
     }
-    function resolve2(baseURI, relativeURI, options) {
+    function resolve3(baseURI, relativeURI, options) {
       const schemelessOptions = options ? Object.assign({ scheme: "null" }, options) : { scheme: "null" };
       const resolved = resolveComponent(parse3(baseURI, schemelessOptions), parse3(relativeURI, schemelessOptions), schemelessOptions, true);
       schemelessOptions.skipEscape = true;
@@ -3809,7 +3809,7 @@ var require_fast_uri = __commonJS({
     var fastUri = {
       SCHEMES,
       normalize,
-      resolve: resolve2,
+      resolve: resolve3,
       resolveComponent,
       equal,
       serialize,
@@ -6785,12 +6785,12 @@ var require_dist = __commonJS({
         throw new Error(`Unknown format "${name}"`);
       return f;
     };
-    function addFormats(ajv, list, fs6, exportName) {
+    function addFormats(ajv, list, fs8, exportName) {
       var _a;
       var _b;
       (_a = (_b = ajv.opts.code).formats) !== null && _a !== void 0 ? _a : _b.formats = (0, codegen_1._)`require("ajv-formats/dist/formats").${exportName}`;
       for (const f of list)
-        ajv.addFormat(f, fs6[f]);
+        ajv.addFormat(f, fs8[f]);
     }
     module2.exports = exports2 = formatsPlugin;
     Object.defineProperty(exports2, "__esModule", { value: true });
@@ -7276,8 +7276,8 @@ function getErrorMap() {
 
 // node_modules/zod/v3/helpers/parseUtil.js
 var makeIssue = (params) => {
-  const { data, path: path5, errorMaps, issueData } = params;
-  const fullPath = [...path5, ...issueData.path || []];
+  const { data, path: path7, errorMaps, issueData } = params;
+  const fullPath = [...path7, ...issueData.path || []];
   const fullIssue = {
     ...issueData,
     path: fullPath
@@ -7393,11 +7393,11 @@ var errorUtil;
 
 // node_modules/zod/v3/types.js
 var ParseInputLazyPath = class {
-  constructor(parent, value, path5, key) {
+  constructor(parent, value, path7, key) {
     this._cachedPath = [];
     this.parent = parent;
     this.data = value;
-    this._path = path5;
+    this._path = path7;
     this._key = key;
   }
   get path() {
@@ -11035,10 +11035,10 @@ function assignProp(target, prop, value) {
     configurable: true
   });
 }
-function getElementAtPath(obj, path5) {
-  if (!path5)
+function getElementAtPath(obj, path7) {
+  if (!path7)
     return obj;
-  return path5.reduce((acc, key) => acc?.[key], obj);
+  return path7.reduce((acc, key) => acc?.[key], obj);
 }
 function promiseAllObject(promisesObj) {
   const keys = Object.keys(promisesObj);
@@ -11358,11 +11358,11 @@ function aborted(x, startIndex = 0) {
   }
   return false;
 }
-function prefixIssues(path5, issues) {
+function prefixIssues(path7, issues) {
   return issues.map((iss) => {
     var _a;
     (_a = iss).path ?? (_a.path = []);
-    iss.path.unshift(path5);
+    iss.path.unshift(path7);
     return iss;
   });
 }
@@ -18873,7 +18873,7 @@ var Protocol = class {
           return;
         }
         const pollInterval = task2.pollInterval ?? this._options?.defaultTaskPollInterval ?? 1e3;
-        await new Promise((resolve2) => setTimeout(resolve2, pollInterval));
+        await new Promise((resolve3) => setTimeout(resolve3, pollInterval));
         options?.signal?.throwIfAborted();
       }
     } catch (error2) {
@@ -18890,7 +18890,7 @@ var Protocol = class {
    */
   request(request, resultSchema, options) {
     const { relatedRequestId, resumptionToken, onresumptiontoken, task, relatedTask } = options ?? {};
-    return new Promise((resolve2, reject) => {
+    return new Promise((resolve3, reject) => {
       const earlyReject = (error2) => {
         reject(error2);
       };
@@ -18968,7 +18968,7 @@ var Protocol = class {
           if (!parseResult.success) {
             reject(parseResult.error);
           } else {
-            resolve2(parseResult.data);
+            resolve3(parseResult.data);
           }
         } catch (error2) {
           reject(error2);
@@ -19229,12 +19229,12 @@ var Protocol = class {
       }
     } catch {
     }
-    return new Promise((resolve2, reject) => {
+    return new Promise((resolve3, reject) => {
       if (signal.aborted) {
         reject(new McpError(ErrorCode.InvalidRequest, "Request cancelled"));
         return;
       }
-      const timeoutId = setTimeout(resolve2, interval);
+      const timeoutId = setTimeout(resolve3, interval);
       signal.addEventListener("abort", () => {
         clearTimeout(timeoutId);
         reject(new McpError(ErrorCode.InvalidRequest, "Request cancelled"));
@@ -20193,7 +20193,7 @@ var McpServer = class {
     let task = createTaskResult.task;
     const pollInterval = task.pollInterval ?? 5e3;
     while (task.status !== "completed" && task.status !== "failed" && task.status !== "cancelled") {
-      await new Promise((resolve2) => setTimeout(resolve2, pollInterval));
+      await new Promise((resolve3) => setTimeout(resolve3, pollInterval));
       const updatedTask = await extra.taskStore.getTask(taskId);
       if (!updatedTask) {
         throw new McpError(ErrorCode.InternalError, `Task ${taskId} not found during polling`);
@@ -20836,19 +20836,19 @@ var StdioServerTransport = class {
     this.onclose?.();
   }
   send(message) {
-    return new Promise((resolve2) => {
+    return new Promise((resolve3) => {
       const json = serializeMessage(message);
       if (this._stdout.write(json)) {
-        resolve2();
+        resolve3();
       } else {
-        this._stdout.once("drain", resolve2);
+        this._stdout.once("drain", resolve3);
       }
     });
   }
 };
 
 // src/mcp-server/index.ts
-var fs5 = __toESM(require("fs"), 1);
+var fs7 = __toESM(require("fs"), 1);
 
 // src/mcp-server/config.ts
 var fs = __toESM(require("fs"), 1);
@@ -20880,6 +20880,31 @@ var DEFAULT_CONFIG = {
     show_models: true,
     show_level: true,
     cost_per_million_tokens: 8
+  },
+  light_pass: {
+    enabled: true,
+    max_input_tokens: 1500,
+    max_output_tokens: 600,
+    max_wall_time_ms: 5e3,
+    temperature: 0.1,
+    allow_retry: true,
+    retry_max_input_tokens: 3e3,
+    retry_max_output_tokens: 1200
+  },
+  quality_gate: {
+    enabled: true,
+    check_completeness: true,
+    check_code_parse: true,
+    check_scope: true,
+    check_hedging: true,
+    check_proportionality: true,
+    min_output_length: 20,
+    max_output_length: 1e4
+  },
+  context_pipeline: {
+    max_files: 3,
+    max_lines_per_file: 120,
+    max_diff_lines: 200
   }
 };
 function getConfigDir() {
@@ -22498,6 +22523,780 @@ function resetMetrics() {
   }
 }
 
+// src/mcp-server/output-estimator.ts
+var BASELINES = {
+  claudesaver_complete: {
+    1: 150,
+    2: 300,
+    3: 500,
+    4: 800,
+    5: 1200,
+    6: 2e3
+  },
+  claudesaver_generate_code: {
+    1: 200,
+    2: 400,
+    3: 700,
+    4: 1e3,
+    5: 1500,
+    6: 2500
+  },
+  claudesaver_analyze_file: {
+    1: 200,
+    2: 350,
+    3: 600,
+    4: 900,
+    5: 1300,
+    6: 2e3
+  }
+};
+var BUFFER_RATIO = 0.25;
+var MIN_HISTORY_ENTRIES = 3;
+function estimateOutputTokens(tool, complexityLevel, metrics) {
+  const entries = metrics ?? loadMetrics();
+  const relevantEntries = entries.filter(
+    (e) => e.type === "completion" && e.tool === tool
+  );
+  if (relevantEntries.length >= MIN_HISTORY_ENTRIES) {
+    const tokenValues = relevantEntries.map((e) => e.output_tokens ?? e.tokens_used).filter((t) => t > 0);
+    if (tokenValues.length >= MIN_HISTORY_ENTRIES) {
+      const avg = tokenValues.reduce((sum, t) => sum + t, 0) / tokenValues.length;
+      const withBuffer2 = Math.ceil(avg * (1 + BUFFER_RATIO));
+      return {
+        estimated_tokens: withBuffer2,
+        source: "historical",
+        confidence: Math.min(0.9, 0.5 + tokenValues.length * 0.05),
+        sample_size: tokenValues.length
+      };
+    }
+  }
+  const toolBaselines = BASELINES[tool] ?? BASELINES["claudesaver_complete"];
+  const clampedLevel = Math.max(1, Math.min(6, complexityLevel));
+  const baseline = toolBaselines[clampedLevel] ?? 300;
+  const withBuffer = Math.ceil(baseline * (1 + BUFFER_RATIO));
+  return {
+    estimated_tokens: withBuffer,
+    source: "heuristic",
+    confidence: 0.4,
+    sample_size: 0
+  };
+}
+
+// src/mcp-server/context-pipeline.ts
+var fs5 = __toESM(require("fs"), 1);
+var path5 = __toESM(require("path"), 1);
+function estimateTokens(text) {
+  return Math.ceil(text.length / 4);
+}
+function extractFileRefs(taskDescription) {
+  const refs = /* @__PURE__ */ new Set();
+  const quotedPaths = taskDescription.match(/["'`]([^"'`\s]+\.\w{1,6})["'`]/g);
+  if (quotedPaths) {
+    for (const match of quotedPaths) {
+      refs.add(match.replace(/["'`]/g, ""));
+    }
+  }
+  const barePaths = taskDescription.match(/(?:\.\/|[\w-]+\/)+[\w.-]+\.\w{1,6}/g);
+  if (barePaths) {
+    for (const match of barePaths) {
+      refs.add(match);
+    }
+  }
+  const backtickRefs = taskDescription.match(/`([^`\s]+\.\w{1,6})`/g);
+  if (backtickRefs) {
+    for (const match of backtickRefs) {
+      refs.add(match.replace(/`/g, ""));
+    }
+  }
+  return [...refs];
+}
+async function buildOutline(filePath) {
+  try {
+    const absPath = path5.resolve(filePath);
+    if (!fs5.existsSync(absPath)) return null;
+    const structureResult = await handleFsPreview(absPath, "structure");
+    const importsResult = await handleFsPreview(absPath, "imports");
+    return {
+      filePath: absPath,
+      language: structureResult.language,
+      totalLines: structureResult.total_lines,
+      structure: {
+        classes: structureResult.classes,
+        functions: structureResult.functions,
+        sections: structureResult.sections
+      },
+      imports: importsResult.imports
+    };
+  } catch {
+    return null;
+  }
+}
+function readFileSlice(filePath, startLine, maxLines) {
+  try {
+    const absPath = path5.resolve(filePath);
+    const content = fs5.readFileSync(absPath, "utf-8");
+    const lines = content.split("\n");
+    const endLine = Math.min(startLine + maxLines, lines.length);
+    const sliceContent = lines.slice(startLine, endLine).join("\n");
+    return {
+      filePath: absPath,
+      startLine,
+      endLine,
+      content: sliceContent,
+      tokens: estimateTokens(sliceContent)
+    };
+  } catch {
+    return null;
+  }
+}
+async function packContext(task, fileRefs, budget, pipelineConfig) {
+  const maxFiles = Math.min(fileRefs.length, pipelineConfig.max_files);
+  const taskTokens = estimateTokens(task);
+  let remainingBudget = budget - taskTokens;
+  const outlines = [];
+  const slices = [];
+  const filesToProcess = fileRefs.slice(0, maxFiles);
+  for (const ref of filesToProcess) {
+    if (remainingBudget <= 0) break;
+    const outline = await buildOutline(ref);
+    if (!outline) continue;
+    const outlineText = formatOutline(outline);
+    const outlineTokens = estimateTokens(outlineText);
+    if (outlineTokens <= remainingBudget) {
+      outlines.push(outline);
+      remainingBudget -= outlineTokens;
+    }
+  }
+  for (const outline of outlines) {
+    if (remainingBudget <= 100) break;
+    const maxLines = pipelineConfig.max_lines_per_file;
+    const slice = readFileSlice(outline.filePath, 0, maxLines);
+    if (!slice) continue;
+    if (slice.tokens <= remainingBudget) {
+      slices.push(slice);
+      remainingBudget -= slice.tokens;
+    }
+  }
+  return {
+    task,
+    outlines,
+    slices,
+    totalTokens: budget - remainingBudget,
+    budget,
+    filesIncluded: outlines.length
+  };
+}
+async function expandContext(previous, newBudget, pipelineConfig) {
+  let remainingBudget = newBudget - previous.totalTokens;
+  const expandedSlices = [...previous.slices];
+  for (const outline of previous.outlines) {
+    if (remainingBudget <= 100) break;
+    const existingSlice = expandedSlices.find((s) => s.filePath === outline.filePath);
+    if (existingSlice) {
+      const additionalLines = Math.min(
+        pipelineConfig.max_lines_per_file * 2,
+        outline.totalLines
+      );
+      const expanded = readFileSlice(outline.filePath, existingSlice.endLine, additionalLines - existingSlice.endLine);
+      if (expanded && expanded.tokens <= remainingBudget) {
+        existingSlice.endLine = expanded.endLine;
+        existingSlice.content += "\n" + expanded.content;
+        existingSlice.tokens += expanded.tokens;
+        remainingBudget -= expanded.tokens;
+      }
+    } else {
+      const maxLines = pipelineConfig.max_lines_per_file * 2;
+      const slice = readFileSlice(outline.filePath, 0, maxLines);
+      if (slice && slice.tokens <= remainingBudget) {
+        expandedSlices.push(slice);
+        remainingBudget -= slice.tokens;
+      }
+    }
+  }
+  return {
+    ...previous,
+    slices: expandedSlices,
+    totalTokens: newBudget - remainingBudget,
+    budget: newBudget
+  };
+}
+function formatOutline(outline) {
+  const parts = [
+    `File: ${outline.filePath} (${outline.language}, ${outline.totalLines} lines)`
+  ];
+  if (outline.imports.length > 0) {
+    parts.push(`Imports: ${outline.imports.join(", ")}`);
+  }
+  if (outline.structure.classes.length > 0) {
+    parts.push(`Classes: ${outline.structure.classes.join(", ")}`);
+  }
+  if (outline.structure.functions.length > 0) {
+    parts.push(`Functions: ${outline.structure.functions.join(", ")}`);
+  }
+  return parts.join("\n");
+}
+function contextToPrompt(packed) {
+  const parts = [];
+  parts.push(`Task: ${packed.task}`);
+  if (packed.outlines.length > 0) {
+    parts.push("\n--- File Context ---");
+    for (const outline of packed.outlines) {
+      parts.push(formatOutline(outline));
+    }
+  }
+  if (packed.slices.length > 0) {
+    parts.push("\n--- Code Snippets ---");
+    for (const slice of packed.slices) {
+      const fileName = path5.basename(slice.filePath);
+      parts.push(`
+// ${fileName} (lines ${slice.startLine + 1}-${slice.endLine})`);
+      parts.push(slice.content);
+    }
+  }
+  return parts.join("\n");
+}
+
+// src/mcp-server/escalation.ts
+var CRITICAL_SIGNALS = /* @__PURE__ */ new Set([
+  "empty_output",
+  "refusal",
+  "repetition_loop"
+]);
+function detectFailureSignals(output, expectedLanguage) {
+  const signals = [];
+  if (output.trim().length < 10) {
+    signals.push("empty_output");
+    return signals;
+  }
+  if (/as an ai|i cannot|i'm not able|i can't help|i apologize but/i.test(output)) {
+    signals.push("refusal");
+  }
+  if (/(.{50,})\1{2,}/.test(output)) {
+    signals.push("repetition_loop");
+  }
+  const trimmed = output.trim();
+  if (trimmed.endsWith("...") || trimmed.split("{").length - trimmed.split("}").length > 2 || trimmed.split("(").length - trimmed.split(")").length > 2) {
+    signals.push("incomplete");
+  }
+  if (expectedLanguage) {
+    const langMismatch = detectWrongLanguage(output, expectedLanguage);
+    if (langMismatch) signals.push("wrong_language");
+  }
+  const hedgeCount = (output.match(/\b(i think|maybe|possibly|not sure|might|perhaps|i believe)\b/gi) ?? []).length;
+  if (hedgeCount >= 3) {
+    signals.push("confidence_caveat");
+  }
+  if (/\b(TODO|TBD|FIXME|PLACEHOLDER|XXX|HACK)\b/.test(output)) {
+    signals.push("placeholder_markers");
+  }
+  if (expectedLanguage && hasObviousSyntaxErrors(output, expectedLanguage)) {
+    signals.push("syntax_error");
+  }
+  return signals;
+}
+function evaluateEscalation(signals) {
+  if (signals.length === 0) {
+    return { accept: true, signals: [], severity: "none" };
+  }
+  const hasCritical = signals.some((s) => CRITICAL_SIGNALS.has(s));
+  if (hasCritical || signals.length >= 2) {
+    return {
+      accept: false,
+      signals,
+      severity: "major",
+      escalation_context: `Local model failed: ${signals.join(", ")}`
+    };
+  }
+  return {
+    accept: true,
+    signals,
+    severity: "minor"
+  };
+}
+function detectWrongLanguage(output, expected) {
+  const langIndicators = {
+    python: [/\bdef\s+\w+\(/, /\bimport\s+\w+/, /\bclass\s+\w+:/, /^\s*#.*$/m],
+    javascript: [/\bfunction\s+\w+\(/, /\bconst\s+\w+\s*=/, /=>\s*\{/, /\brequire\(/],
+    typescript: [/:\s*(string|number|boolean)\b/, /\binterface\s+/, /\btype\s+\w+\s*=/],
+    java: [/\bpublic\s+(class|static|void)/, /System\.out\.print/],
+    go: [/\bfunc\s+\w+\(/, /\bpackage\s+\w+/, /\bfmt\.\w+/],
+    rust: [/\bfn\s+\w+\(/, /\blet\s+mut\s+/, /\bimpl\s+/]
+  };
+  const expectedLower = expected.toLowerCase();
+  const otherLanguages = Object.keys(langIndicators).filter((l) => l !== expectedLower);
+  for (const lang of otherLanguages) {
+    const indicators = langIndicators[lang];
+    if (!indicators) continue;
+    const matchCount = indicators.filter((r) => r.test(output)).length;
+    if (matchCount >= 2) {
+      const expectedIndicators = langIndicators[expectedLower];
+      if (expectedIndicators) {
+        const expectedMatchCount = expectedIndicators.filter((r) => r.test(output)).length;
+        if (expectedMatchCount < matchCount) return true;
+      }
+    }
+  }
+  return false;
+}
+function hasObviousSyntaxErrors(output, language) {
+  const codeMatch = output.match(/```[\w]*\n([\s\S]*?)```/);
+  const code = codeMatch ? codeMatch[1] : output;
+  switch (language.toLowerCase()) {
+    case "python":
+      return hasUnmatchedBrackets(code);
+    case "javascript":
+    case "typescript":
+      return hasUnmatchedBrackets(code) || hasUnmatchedBraces(code);
+    case "json":
+      try {
+        JSON.parse(code);
+        return false;
+      } catch {
+        return true;
+      }
+    default:
+      return hasUnmatchedBrackets(code) || hasUnmatchedBraces(code);
+  }
+}
+function hasUnmatchedBrackets(code) {
+  let parens = 0, brackets = 0;
+  for (const ch of code) {
+    if (ch === "(") parens++;
+    if (ch === ")") parens--;
+    if (ch === "[") brackets++;
+    if (ch === "]") brackets--;
+    if (parens < -2 || brackets < -2) return true;
+  }
+  return Math.abs(parens) > 2 || Math.abs(brackets) > 2;
+}
+function hasUnmatchedBraces(code) {
+  let braces = 0;
+  for (const ch of code) {
+    if (ch === "{") braces++;
+    if (ch === "}") braces--;
+    if (braces < -2) return true;
+  }
+  return Math.abs(braces) > 2;
+}
+
+// src/mcp-server/quality-gate.ts
+function checkCompleteness(output) {
+  const markers = /\b(TODO|TBD|FIXME|PLACEHOLDER|XXX)\b/;
+  const match = output.match(markers);
+  return {
+    name: "completeness",
+    passed: !match,
+    reason: match ? `Found placeholder marker: ${match[0]}` : void 0,
+    hard: true
+  };
+}
+function checkCodeParse(output) {
+  const codeMatch = output.match(/```[\w]*\n([\s\S]*?)```/);
+  const code = codeMatch ? codeMatch[1] : output;
+  const bracketIssue = hasUnmatchedBrackets(code);
+  const braceIssue = hasUnmatchedBraces(code);
+  return {
+    name: "code_parse",
+    passed: !bracketIssue && !braceIssue,
+    reason: bracketIssue ? "Unmatched brackets" : braceIssue ? "Unmatched braces" : void 0,
+    hard: true
+  };
+}
+function checkScopeCompliance(output, allowedFiles) {
+  if (!allowedFiles || allowedFiles.length === 0) {
+    return { name: "scope_compliance", passed: true, hard: true };
+  }
+  const fileRefs = output.match(/(?:["'`])?(?:\.\/|[\w-]+\/)+[\w.-]+\.\w{1,6}(?:["'`])?/g) ?? [];
+  const normalized = fileRefs.map((r) => r.replace(/["'`]/g, ""));
+  const allowedSet = new Set(allowedFiles.map((f) => f.replace(/\\/g, "/")));
+  const outOfScope = normalized.filter((ref) => {
+    const norm = ref.replace(/\\/g, "/");
+    return !allowedSet.has(norm) && ![...allowedSet].some((a) => norm.endsWith(a) || a.endsWith(norm));
+  });
+  return {
+    name: "scope_compliance",
+    passed: outOfScope.length === 0,
+    reason: outOfScope.length > 0 ? `Files outside scope: ${outOfScope.join(", ")}` : void 0,
+    hard: true
+  };
+}
+function checkRequiredSections(output, requiredSections) {
+  if (!requiredSections || requiredSections.length === 0) {
+    return { name: "required_sections", passed: true, hard: true };
+  }
+  const missing = requiredSections.filter((section) => {
+    const pattern = new RegExp(`\\b${section.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i");
+    return !pattern.test(output);
+  });
+  return {
+    name: "required_sections",
+    passed: missing.length === 0,
+    reason: missing.length > 0 ? `Missing sections: ${missing.join(", ")}` : void 0,
+    hard: true
+  };
+}
+function checkLength(output, minLength, maxLength) {
+  const len = output.trim().length;
+  if (len < minLength) {
+    return { name: "length", passed: false, reason: `Output too short: ${len} chars (min ${minLength})`, hard: true };
+  }
+  if (len > maxLength) {
+    return { name: "length", passed: false, reason: `Output too long: ${len} chars (max ${maxLength})`, hard: true };
+  }
+  return { name: "length", passed: true, hard: true };
+}
+function checkNoHedging(output) {
+  const hedgePatterns = /\b(i think|maybe|possibly|not sure|might|perhaps|i believe|could be|it seems)\b/gi;
+  const matches = output.match(hedgePatterns) ?? [];
+  return {
+    name: "no_hedging",
+    passed: matches.length < 3,
+    reason: matches.length >= 3 ? `Excessive hedging: ${matches.length} instances` : void 0,
+    hard: false
+  };
+}
+function checkProportionality(output, expectedTokens) {
+  if (!expectedTokens || expectedTokens <= 0) {
+    return { name: "proportionality", passed: true, hard: false };
+  }
+  const actualTokens = Math.ceil(output.length / 4);
+  const ratio = actualTokens / expectedTokens;
+  if (ratio < 0.2) {
+    return { name: "proportionality", passed: false, reason: `Output disproportionately short: ${actualTokens} tokens vs ${expectedTokens} expected`, hard: false };
+  }
+  if (ratio > 5) {
+    return { name: "proportionality", passed: false, reason: `Output disproportionately long: ${actualTokens} tokens vs ${expectedTokens} expected`, hard: false };
+  }
+  return { name: "proportionality", passed: true, hard: false };
+}
+function runQualityGate(output, options) {
+  const { config: config2, expectedLanguage, allowedFiles, requiredSections, expectedOutputTokens } = options;
+  const failureSignals = detectFailureSignals(output, expectedLanguage);
+  const escalation = evaluateEscalation(failureSignals);
+  if (!escalation.accept && escalation.severity === "major") {
+    return {
+      accepted: false,
+      hard_failures: [{ name: "escalation_signals", passed: false, reason: escalation.escalation_context, hard: true }],
+      soft_failures: [],
+      all_checks: [{ name: "escalation_signals", passed: false, reason: escalation.escalation_context, hard: true }],
+      checks_passed: 0,
+      checks_total: 1,
+      should_retry: false,
+      should_escalate: true,
+      failure_signals: failureSignals
+    };
+  }
+  const allChecks = [];
+  if (config2.check_completeness) {
+    allChecks.push(checkCompleteness(output));
+  }
+  if (config2.check_code_parse) {
+    allChecks.push(checkCodeParse(output));
+  }
+  if (config2.check_scope) {
+    allChecks.push(checkScopeCompliance(output, allowedFiles));
+  }
+  allChecks.push(checkRequiredSections(output, requiredSections));
+  allChecks.push(checkLength(output, config2.min_output_length, config2.max_output_length));
+  if (config2.check_hedging) {
+    allChecks.push(checkNoHedging(output));
+  }
+  if (config2.check_proportionality) {
+    allChecks.push(checkProportionality(output, expectedOutputTokens));
+  }
+  const hardFailures = allChecks.filter((c) => c.hard && !c.passed);
+  const softFailures = allChecks.filter((c) => !c.hard && !c.passed);
+  const passed = allChecks.filter((c) => c.passed).length;
+  const hasHardFailure = hardFailures.length > 0;
+  const hasSoftFailure = softFailures.length > 0;
+  return {
+    accepted: !hasHardFailure && !hasSoftFailure,
+    hard_failures: hardFailures,
+    soft_failures: softFailures,
+    all_checks: allChecks,
+    checks_passed: passed,
+    checks_total: allChecks.length,
+    should_retry: !hasHardFailure && hasSoftFailure,
+    should_escalate: hasHardFailure,
+    failure_signals: failureSignals
+  };
+}
+
+// src/mcp-server/delegation-metrics.ts
+var fs6 = __toESM(require("fs"), 1);
+var path6 = __toESM(require("path"), 1);
+function getMetricsPath2() {
+  const config2 = loadConfig();
+  return resolvePath(config2.metrics.log_path);
+}
+function ensureDir2(filePath) {
+  const dir = path6.dirname(filePath);
+  if (!fs6.existsSync(dir)) {
+    fs6.mkdirSync(dir, { recursive: true });
+  }
+}
+function logDelegation(entry) {
+  try {
+    const config2 = loadConfig();
+    if (!config2.metrics.enabled) return;
+    const metricsPath = getMetricsPath2();
+    ensureDir2(metricsPath);
+    const record2 = {
+      type: "delegation",
+      timestamp: (/* @__PURE__ */ new Date()).toISOString(),
+      tool: entry.tool,
+      quality_status: entry.quality_status,
+      attempt_count: entry.attempt_count,
+      tokens_used: entry.tokens_used,
+      output_tokens: entry.output_tokens,
+      duration_ms: entry.duration_ms,
+      model: entry.model,
+      resolved_locally: entry.resolved_locally,
+      session_id: process.env["CLAUDE_SESSION_ID"] ?? "unknown"
+    };
+    fs6.appendFileSync(metricsPath, JSON.stringify(record2) + "\n", "utf-8");
+  } catch {
+  }
+}
+function loadDelegationEntries() {
+  try {
+    const metricsPath = getMetricsPath2();
+    if (!fs6.existsSync(metricsPath)) return [];
+    const content = fs6.readFileSync(metricsPath, "utf-8");
+    return content.split("\n").filter((line) => line.trim()).map((line) => {
+      try {
+        return JSON.parse(line);
+      } catch {
+        return null;
+      }
+    }).filter((e) => e !== null && e.type === "delegation");
+  } catch {
+    return [];
+  }
+}
+function computeDelegationSummary(entries) {
+  const delegations = entries ?? loadDelegationEntries();
+  if (delegations.length === 0) {
+    return {
+      total_delegations: 0,
+      resolved_locally: 0,
+      escalated: 0,
+      resolution_rate: 0,
+      retry_rate: 0,
+      avg_attempts: 0,
+      quality_breakdown: { accepted: 0, retried_accepted: 0, escalated: 0 },
+      total_local_tokens: 0,
+      avg_duration_ms: 0
+    };
+  }
+  const resolved = delegations.filter((d) => d.resolved_locally).length;
+  const escalated = delegations.filter((d) => !d.resolved_locally).length;
+  const retried = delegations.filter((d) => d.attempt_count > 1).length;
+  const totalAttempts = delegations.reduce((sum, d) => sum + d.attempt_count, 0);
+  const totalTokens = delegations.reduce((sum, d) => sum + d.tokens_used, 0);
+  const totalDuration = delegations.reduce((sum, d) => sum + d.duration_ms, 0);
+  const qualityBreakdown = {
+    accepted: 0,
+    retried_accepted: 0,
+    escalated: 0
+  };
+  for (const d of delegations) {
+    qualityBreakdown[d.quality_status] = (qualityBreakdown[d.quality_status] ?? 0) + 1;
+  }
+  return {
+    total_delegations: delegations.length,
+    resolved_locally: resolved,
+    escalated,
+    resolution_rate: resolved / delegations.length,
+    retry_rate: retried / delegations.length,
+    avg_attempts: totalAttempts / delegations.length,
+    quality_breakdown: qualityBreakdown,
+    total_local_tokens: totalTokens,
+    avg_duration_ms: totalDuration / delegations.length
+  };
+}
+
+// src/mcp-server/light-pass.ts
+function buildRoutingInfo(routing) {
+  return {
+    route: routing.route,
+    task_complexity: routing.task_complexity,
+    confidence: routing.confidence,
+    reason: routing.reason,
+    classification_layer: routing.classification_layer
+  };
+}
+async function executeLightPass(task, options) {
+  const config2 = loadConfig();
+  const lpConfig = config2.light_pass;
+  const qgConfig = config2.quality_gate;
+  const cpConfig = config2.context_pipeline;
+  const routing = await classifyTask(task);
+  const routingInfo = buildRoutingInfo(routing);
+  const estimate = estimateOutputTokens(options.tool, routing.task_complexity);
+  const fileRefs = options.fileRefs ?? extractFileRefs(task);
+  const packed = await packContext(task, fileRefs, lpConfig.max_input_tokens, cpConfig);
+  const prompt = contextToPrompt(packed);
+  const attempt1 = await attemptExecution(prompt, config2, options, estimate.estimated_tokens);
+  if (!attempt1) {
+    return buildEscalation(task, packed, ["Ollama request failed"], 1, routingInfo);
+  }
+  const gateOpts = {
+    config: qgConfig,
+    expectedLanguage: options.expectedLanguage,
+    allowedFiles: options.allowedFiles,
+    requiredSections: options.requiredSections,
+    expectedOutputTokens: estimate.estimated_tokens
+  };
+  const gate1 = qgConfig.enabled ? runQualityGate(attempt1.response, gateOpts) : acceptAll(attempt1.response);
+  if (gate1.accepted) {
+    logDelegation({
+      tool: options.tool,
+      quality_status: "accepted",
+      attempt_count: 1,
+      tokens_used: attempt1.tokens_used,
+      output_tokens: attempt1.tokens_used,
+      duration_ms: attempt1.duration_ms,
+      model: attempt1.model,
+      resolved_locally: true
+    });
+    return {
+      escalated: false,
+      response: attempt1.response,
+      thinking: attempt1.thinking,
+      model: attempt1.model,
+      tokens_used: attempt1.tokens_used,
+      duration_ms: attempt1.duration_ms,
+      done_reason: attempt1.done_reason,
+      quality: {
+        status: "accepted",
+        checks_passed: gate1.checks_passed,
+        checks_total: gate1.checks_total
+      },
+      routing: routingInfo,
+      attempt_count: 1
+    };
+  }
+  if (!gate1.should_escalate && gate1.should_retry && lpConfig.allow_retry) {
+    const expandedPacked = await expandContext(packed, lpConfig.retry_max_input_tokens, cpConfig);
+    const retryPrompt = contextToPrompt(expandedPacked);
+    const attempt2 = await attemptExecution(retryPrompt, config2, {
+      ...options
+    }, lpConfig.retry_max_output_tokens);
+    if (!attempt2) {
+      return buildEscalation(task, packed, ["Retry Ollama request failed"], 2, routingInfo);
+    }
+    const gate2 = runQualityGate(attempt2.response, gateOpts);
+    if (gate2.accepted || !gate2.should_escalate && gate2.soft_failures.length === 0) {
+      const totalDuration = attempt1.duration_ms + attempt2.duration_ms;
+      const totalTokens = attempt1.tokens_used + attempt2.tokens_used;
+      logDelegation({
+        tool: options.tool,
+        quality_status: "retried_accepted",
+        attempt_count: 2,
+        tokens_used: totalTokens,
+        output_tokens: attempt2.tokens_used,
+        duration_ms: totalDuration,
+        model: attempt2.model,
+        resolved_locally: true
+      });
+      return {
+        escalated: false,
+        response: attempt2.response,
+        thinking: attempt2.thinking,
+        model: attempt2.model,
+        tokens_used: totalTokens,
+        duration_ms: totalDuration,
+        done_reason: attempt2.done_reason,
+        quality: {
+          status: "retried_accepted",
+          checks_passed: gate2.checks_passed,
+          checks_total: gate2.checks_total
+        },
+        routing: routingInfo,
+        attempt_count: 2
+      };
+    }
+    const failureReasons2 = [
+      ...gate1.hard_failures.map((f) => f.reason ?? f.name),
+      ...gate1.soft_failures.map((f) => f.reason ?? f.name),
+      ...gate2.hard_failures.map((f) => f.reason ?? f.name),
+      ...gate2.soft_failures.map((f) => f.reason ?? f.name)
+    ].filter(Boolean);
+    logDelegation({
+      tool: options.tool,
+      quality_status: "escalated",
+      attempt_count: 2,
+      tokens_used: attempt1.tokens_used + attempt2.tokens_used,
+      output_tokens: attempt2.tokens_used,
+      duration_ms: attempt1.duration_ms + attempt2.duration_ms,
+      model: attempt2.model,
+      resolved_locally: false
+    });
+    return buildEscalation(task, packed, failureReasons2, 2, routingInfo);
+  }
+  const failureReasons = [
+    ...gate1.hard_failures.map((f) => f.reason ?? f.name),
+    ...gate1.soft_failures.map((f) => f.reason ?? f.name)
+  ].filter(Boolean);
+  logDelegation({
+    tool: options.tool,
+    quality_status: "escalated",
+    attempt_count: 1,
+    tokens_used: attempt1.tokens_used,
+    output_tokens: attempt1.tokens_used,
+    duration_ms: attempt1.duration_ms,
+    model: attempt1.model,
+    resolved_locally: false
+  });
+  return buildEscalation(task, packed, failureReasons, 1, routingInfo);
+}
+async function attemptExecution(prompt, config2, options, maxTokens) {
+  try {
+    return await ollamaChat(prompt, {
+      model: options.model,
+      system_prompt: options.system_prompt,
+      temperature: config2.light_pass.temperature,
+      max_tokens: maxTokens,
+      timeoutMs: config2.light_pass.max_wall_time_ms
+    });
+  } catch {
+    return null;
+  }
+}
+function buildEscalation(task, packed, failureReasons, attemptCount, routing) {
+  const fileContext = packed.outlines.map((o) => ({
+    file: o.filePath,
+    outline: `${o.language}, ${o.totalLines} lines. Classes: [${o.structure.classes.join(", ")}]. Functions: [${o.structure.functions.join(", ")}]`
+  }));
+  const uniqueReasons = [...new Set(failureReasons)];
+  return {
+    escalated: true,
+    message: `Local model failed after ${attemptCount} attempt${attemptCount > 1 ? "s" : ""}. Reasons: ${uniqueReasons.join("; ")}`,
+    escalation: {
+      task_intent: task,
+      file_context: fileContext,
+      failure_reasons: uniqueReasons,
+      attempt_count: attemptCount,
+      escalation_message: `Local model failed after ${attemptCount} attempt${attemptCount > 1 ? "s" : ""}. ${uniqueReasons.join(". ")}.`
+    },
+    routing
+  };
+}
+function acceptAll(_output) {
+  return {
+    accepted: true,
+    hard_failures: [],
+    soft_failures: [],
+    all_checks: [],
+    checks_passed: 0,
+    checks_total: 0,
+    should_retry: false,
+    should_escalate: false,
+    failure_signals: []
+  };
+}
+
 // src/mcp-server/index.ts
 var server = new McpServer({
   name: "claude-saver",
@@ -22556,7 +23355,7 @@ server.tool(
 );
 server.tool(
   "claudesaver_complete",
-  "Send a prompt to a local Ollama model for completion. Includes routing metadata showing classification decision. Use for tasks that don't need cloud-tier intelligence.",
+  "Send a prompt to a local Ollama model for completion. Includes routing metadata and quality validation. Use for tasks that don't need cloud-tier intelligence.",
   {
     prompt: external_exports.string().describe("The task/question to send to the local model"),
     model: external_exports.string().optional().describe("Override model (default from config)"),
@@ -22566,34 +23365,28 @@ server.tool(
   },
   async ({ prompt, model, system_prompt, temperature, max_tokens }) => {
     try {
-      const routing = await classifyTask(prompt);
-      const result = await ollamaChat(prompt, {
+      const config2 = loadConfig();
+      if (!config2.light_pass.enabled) {
+        const routing = await classifyTask(prompt);
+        const result = await ollamaChat(prompt, { model, system_prompt, temperature, max_tokens });
+        logCompletion({ tokens_used: result.tokens_used, model: result.model, duration_ms: result.duration_ms, tool: "claudesaver_complete" });
+        const response = {
+          response: result.response,
+          model: result.model,
+          tokens_used: result.tokens_used,
+          duration_ms: result.duration_ms,
+          routing: { route: routing.route, task_complexity: routing.task_complexity, confidence: routing.confidence, reason: routing.reason, classification_layer: routing.classification_layer }
+        };
+        if (result.thinking) response.thinking = result.thinking;
+        if (result.done_reason && result.done_reason !== "stop") response.done_reason = result.done_reason;
+        return ok(response);
+      }
+      const lpResult = await executeLightPass(prompt, {
+        tool: "claudesaver_complete",
         model,
-        system_prompt,
-        temperature,
-        max_tokens
+        system_prompt
       });
-      logCompletion({ tokens_used: result.tokens_used, model: result.model, duration_ms: result.duration_ms, tool: "claudesaver_complete" });
-      const response = {
-        response: result.response,
-        model: result.model,
-        tokens_used: result.tokens_used,
-        duration_ms: result.duration_ms,
-        routing: {
-          route: routing.route,
-          task_complexity: routing.task_complexity,
-          confidence: routing.confidence,
-          reason: routing.reason,
-          classification_layer: routing.classification_layer
-        }
-      };
-      if (result.thinking) {
-        response.thinking = result.thinking;
-      }
-      if (result.done_reason && result.done_reason !== "stop") {
-        response.done_reason = result.done_reason;
-      }
-      return ok(response);
+      return ok(lpResult);
     } catch (e) {
       return err(e instanceof Error ? e.message : String(e));
     }
@@ -22601,7 +23394,7 @@ server.tool(
 );
 server.tool(
   "claudesaver_generate_code",
-  "Generate code using a local Ollama model. Provides a structured code generation prompt template for better results.",
+  "Generate code using a local Ollama model. Includes quality validation with code-specific checks.",
   {
     description: external_exports.string().describe("What code to generate"),
     language: external_exports.string().describe("Target programming language"),
@@ -22610,6 +23403,7 @@ server.tool(
   },
   async ({ description, language, context, model }) => {
     try {
+      const config2 = loadConfig();
       const systemPrompt = `You are an expert ${language} developer. Generate clean, idiomatic ${language} code. Output ONLY the code, no explanations.`;
       let prompt = `Generate ${language} code:
 ${description}`;
@@ -22619,21 +23413,32 @@ ${description}`;
 Context (surrounding code):
 ${context}`;
       }
-      const result = await ollamaChat(prompt, {
+      if (!config2.light_pass.enabled) {
+        const result = await ollamaChat(prompt, { model, system_prompt: systemPrompt, temperature: 0.3 });
+        logCompletion({ tokens_used: result.tokens_used, model: result.model, duration_ms: result.duration_ms, tool: "claudesaver_generate_code" });
+        const resp = { code: result.response, language, model: result.model, tokens_used: result.tokens_used, duration_ms: result.duration_ms };
+        if (result.thinking) resp.thinking = result.thinking;
+        return ok(resp);
+      }
+      const lpResult = await executeLightPass(prompt, {
+        tool: "claudesaver_generate_code",
         model,
         system_prompt: systemPrompt,
-        temperature: 0.3
+        expectedLanguage: language
       });
-      logCompletion({ tokens_used: result.tokens_used, model: result.model, duration_ms: result.duration_ms, tool: "claudesaver_generate_code" });
-      const resp = {
-        code: result.response,
-        language,
-        model: result.model,
-        tokens_used: result.tokens_used,
-        duration_ms: result.duration_ms
-      };
-      if (result.thinking) resp.thinking = result.thinking;
-      return ok(resp);
+      if (!lpResult.escalated) {
+        return ok({
+          code: lpResult.response,
+          language,
+          model: lpResult.model,
+          tokens_used: lpResult.tokens_used,
+          duration_ms: lpResult.duration_ms,
+          quality: lpResult.quality,
+          routing: lpResult.routing,
+          ...lpResult.thinking ? { thinking: lpResult.thinking } : {}
+        });
+      }
+      return ok(lpResult);
     } catch (e) {
       return err(e instanceof Error ? e.message : String(e));
     }
@@ -22641,7 +23446,7 @@ ${context}`;
 );
 server.tool(
   "claudesaver_analyze_file",
-  "Read a file and analyze it using a local Ollama model. The file contents stay local \u2014 never sent to the cloud API.",
+  "Analyze a file using a local Ollama model with context-aware slicing. File contents stay local \u2014 never sent to the cloud API.",
   {
     file_path: external_exports.string().describe("Path to the file to analyze"),
     task: external_exports.enum(["summarize", "find_bugs", "explain", "refactor"]).describe("Analysis task"),
@@ -22649,11 +23454,11 @@ server.tool(
   },
   async ({ file_path, task, model }) => {
     try {
-      const fileStat2 = fs5.statSync(file_path);
+      const fileStat2 = fs7.statSync(file_path);
       if (fileStat2.size > 1e7) {
         return err(`File too large: ${(fileStat2.size / 1e6).toFixed(1)}MB (max 10MB)`);
       }
-      const content = fs5.readFileSync(file_path, "utf-8");
+      const config2 = loadConfig();
       const taskPrompts = {
         summarize: "Provide a concise summary of what this code does, its key functions, and its purpose.",
         find_bugs: "Review this code for bugs, potential issues, and improvements. List each issue clearly.",
@@ -22662,27 +23467,41 @@ server.tool(
       };
       const prompt = `${taskPrompts[task]}
 
-File: ${file_path}
+File: ${file_path}`;
+      if (!config2.light_pass.enabled) {
+        const content = fs7.readFileSync(file_path, "utf-8");
+        const fullPrompt = `${prompt}
 
 \`\`\`
 ${content}
 \`\`\``;
-      const result = await ollamaChat(prompt, {
+        const result = await ollamaChat(fullPrompt, { model, system_prompt: "You are an expert code reviewer. Be specific and actionable.", temperature: 0.3 });
+        logCompletion({ tokens_used: result.tokens_used, model: result.model, duration_ms: result.duration_ms, tool: "claudesaver_analyze_file" });
+        const resp = { analysis: result.response, task, file_path, model: result.model, tokens_used: result.tokens_used, duration_ms: result.duration_ms };
+        if (result.thinking) resp.thinking = result.thinking;
+        return ok(resp);
+      }
+      const lpResult = await executeLightPass(prompt, {
+        tool: "claudesaver_analyze_file",
         model,
         system_prompt: "You are an expert code reviewer. Be specific and actionable.",
-        temperature: 0.3
+        fileRefs: [file_path],
+        allowedFiles: [file_path]
       });
-      logCompletion({ tokens_used: result.tokens_used, model: result.model, duration_ms: result.duration_ms, tool: "claudesaver_analyze_file" });
-      const resp = {
-        analysis: result.response,
-        task,
-        file_path,
-        model: result.model,
-        tokens_used: result.tokens_used,
-        duration_ms: result.duration_ms
-      };
-      if (result.thinking) resp.thinking = result.thinking;
-      return ok(resp);
+      if (!lpResult.escalated) {
+        return ok({
+          analysis: lpResult.response,
+          task,
+          file_path,
+          model: lpResult.model,
+          tokens_used: lpResult.tokens_used,
+          duration_ms: lpResult.duration_ms,
+          quality: lpResult.quality,
+          routing: lpResult.routing,
+          ...lpResult.thinking ? { thinking: lpResult.thinking } : {}
+        });
+      }
+      return ok(lpResult);
     } catch (e) {
       return err(e instanceof Error ? e.message : String(e));
     }
@@ -22747,10 +23566,10 @@ server.tool(
     try {
       if (action === "reset") {
         const os3 = await import("os");
-        const path5 = await import("path");
-        const configPath = path5.join(os3.homedir(), ".claude-saver", "config.json");
-        if (fs5.existsSync(configPath)) {
-          fs5.unlinkSync(configPath);
+        const path7 = await import("path");
+        const configPath = path7.join(os3.homedir(), ".claude-saver", "config.json");
+        if (fs7.existsSync(configPath)) {
+          fs7.unlinkSync(configPath);
         }
         return ok({ message: "Config reset to defaults", config: loadConfig() });
       }
@@ -22790,8 +23609,8 @@ function isLocalUrl(url) {
     return false;
   }
 }
-function getByPath(obj, path5) {
-  const parts = path5.split(".");
+function getByPath(obj, path7) {
+  const parts = path7.split(".");
   let current = obj;
   for (const part of parts) {
     if (current === null || current === void 0 || typeof current !== "object") return void 0;
@@ -22799,9 +23618,9 @@ function getByPath(obj, path5) {
   }
   return current;
 }
-function setByPath(obj, path5, value) {
+function setByPath(obj, path7, value) {
   const DANGEROUS = /* @__PURE__ */ new Set(["__proto__", "constructor", "prototype"]);
-  const parts = path5.split(".");
+  const parts = path7.split(".");
   if (parts.some((p) => DANGEROUS.has(p))) return false;
   let current = obj;
   for (let i = 0; i < parts.length - 1; i++) {
@@ -22911,15 +23730,19 @@ server.tool(
 );
 server.tool(
   "claudesaver_metrics",
-  "View token savings metrics and routing statistics.",
+  "View token savings metrics, routing statistics, and delegation quality data.",
   {
-    action: external_exports.enum(["summary", "reset", "session"]).describe('"summary" shows cumulative stats, "reset" clears history, "session" shows current session')
+    action: external_exports.enum(["summary", "reset", "session", "delegation"]).describe('"summary" shows cumulative stats, "reset" clears history, "session" shows current session, "delegation" shows light pass quality stats')
   },
   async ({ action }) => {
     try {
       if (action === "reset") {
         resetMetrics();
         return ok({ message: "Metrics reset successfully" });
+      }
+      if (action === "delegation") {
+        const delegationSummary = computeDelegationSummary();
+        return ok(delegationSummary);
       }
       const summary = computeSummary();
       return ok(summary);

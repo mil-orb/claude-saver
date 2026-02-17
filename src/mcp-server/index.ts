@@ -7,6 +7,8 @@ import { checkHealth, ollamaChat } from './health.js';
 import { handleFs, handleFsPreview } from './fs-tools.js';
 import { classifyTask } from './router.js';
 import { computeSummary, resetMetrics, logCompletion } from './metrics.js';
+import { executeLightPass } from './light-pass.js';
+import { computeDelegationSummary } from './delegation-metrics.js';
 
 const server = new McpServer({
   name: 'claude-saver',
@@ -72,7 +74,7 @@ server.tool(
 
 server.tool(
   'claudesaver_complete',
-  'Send a prompt to a local Ollama model for completion. Includes routing metadata showing classification decision. Use for tasks that don\'t need cloud-tier intelligence.',
+  'Send a prompt to a local Ollama model for completion. Includes routing metadata and quality validation. Use for tasks that don\'t need cloud-tier intelligence.',
   {
     prompt: z.string().describe('The task/question to send to the local model'),
     model: z.string().optional().describe('Override model (default from config)'),
@@ -82,36 +84,29 @@ server.tool(
   },
   async ({ prompt, model, system_prompt, temperature, max_tokens }) => {
     try {
-      // Classify the task via router
-      const routing = await classifyTask(prompt);
+      const config = loadConfig();
 
-      const result = await ollamaChat(prompt, {
+      // Kill switch: fall back to direct ollamaChat if light pass disabled
+      if (!config.light_pass.enabled) {
+        const routing = await classifyTask(prompt);
+        const result = await ollamaChat(prompt, { model, system_prompt, temperature, max_tokens });
+        logCompletion({ tokens_used: result.tokens_used, model: result.model, duration_ms: result.duration_ms, tool: 'claudesaver_complete' });
+        const response: Record<string, unknown> = {
+          response: result.response, model: result.model, tokens_used: result.tokens_used, duration_ms: result.duration_ms,
+          routing: { route: routing.route, task_complexity: routing.task_complexity, confidence: routing.confidence, reason: routing.reason, classification_layer: routing.classification_layer },
+        };
+        if (result.thinking) response.thinking = result.thinking;
+        if (result.done_reason && result.done_reason !== 'stop') response.done_reason = result.done_reason;
+        return ok(response);
+      }
+
+      const lpResult = await executeLightPass(prompt, {
+        tool: 'claudesaver_complete',
         model,
         system_prompt,
-        temperature,
-        max_tokens,
       });
-      logCompletion({ tokens_used: result.tokens_used, model: result.model, duration_ms: result.duration_ms, tool: 'claudesaver_complete' });
-      const response: Record<string, unknown> = {
-        response: result.response,
-        model: result.model,
-        tokens_used: result.tokens_used,
-        duration_ms: result.duration_ms,
-        routing: {
-          route: routing.route,
-          task_complexity: routing.task_complexity,
-          confidence: routing.confidence,
-          reason: routing.reason,
-          classification_layer: routing.classification_layer,
-        },
-      };
-      if (result.thinking) {
-        response.thinking = result.thinking;
-      }
-      if (result.done_reason && result.done_reason !== 'stop') {
-        response.done_reason = result.done_reason;
-      }
-      return ok(response);
+
+      return ok(lpResult);
     } catch (e) {
       return err(e instanceof Error ? e.message : String(e));
     }
@@ -120,7 +115,7 @@ server.tool(
 
 server.tool(
   'claudesaver_generate_code',
-  'Generate code using a local Ollama model. Provides a structured code generation prompt template for better results.',
+  'Generate code using a local Ollama model. Includes quality validation with code-specific checks.',
   {
     description: z.string().describe('What code to generate'),
     language: z.string().describe('Target programming language'),
@@ -129,28 +124,44 @@ server.tool(
   },
   async ({ description, language, context, model }) => {
     try {
+      const config = loadConfig();
       const systemPrompt = `You are an expert ${language} developer. Generate clean, idiomatic ${language} code. Output ONLY the code, no explanations.`;
       let prompt = `Generate ${language} code:\n${description}`;
       if (context) {
         prompt += `\n\nContext (surrounding code):\n${context}`;
       }
 
-      const result = await ollamaChat(prompt, {
+      // Kill switch: fall back to direct ollamaChat if light pass disabled
+      if (!config.light_pass.enabled) {
+        const result = await ollamaChat(prompt, { model, system_prompt: systemPrompt, temperature: 0.3 });
+        logCompletion({ tokens_used: result.tokens_used, model: result.model, duration_ms: result.duration_ms, tool: 'claudesaver_generate_code' });
+        const resp: Record<string, unknown> = { code: result.response, language, model: result.model, tokens_used: result.tokens_used, duration_ms: result.duration_ms };
+        if (result.thinking) resp.thinking = result.thinking;
+        return ok(resp);
+      }
+
+      const lpResult = await executeLightPass(prompt, {
+        tool: 'claudesaver_generate_code',
         model,
         system_prompt: systemPrompt,
-        temperature: 0.3,
+        expectedLanguage: language,
       });
 
-      logCompletion({ tokens_used: result.tokens_used, model: result.model, duration_ms: result.duration_ms, tool: 'claudesaver_generate_code' });
-      const resp: Record<string, unknown> = {
-        code: result.response,
-        language,
-        model: result.model,
-        tokens_used: result.tokens_used,
-        duration_ms: result.duration_ms,
-      };
-      if (result.thinking) resp.thinking = result.thinking;
-      return ok(resp);
+      // Reshape successful response to code-generation format
+      if (!lpResult.escalated) {
+        return ok({
+          code: lpResult.response,
+          language,
+          model: lpResult.model,
+          tokens_used: lpResult.tokens_used,
+          duration_ms: lpResult.duration_ms,
+          quality: lpResult.quality,
+          routing: lpResult.routing,
+          ...(lpResult.thinking ? { thinking: lpResult.thinking } : {}),
+        });
+      }
+
+      return ok(lpResult);
     } catch (e) {
       return err(e instanceof Error ? e.message : String(e));
     }
@@ -159,7 +170,7 @@ server.tool(
 
 server.tool(
   'claudesaver_analyze_file',
-  'Read a file and analyze it using a local Ollama model. The file contents stay local — never sent to the cloud API.',
+  'Analyze a file using a local Ollama model with context-aware slicing. File contents stay local — never sent to the cloud API.',
   {
     file_path: z.string().describe('Path to the file to analyze'),
     task: z.enum(['summarize', 'find_bugs', 'explain', 'refactor']).describe('Analysis task'),
@@ -171,8 +182,8 @@ server.tool(
       if (fileStat.size > 10_000_000) {
         return err(`File too large: ${(fileStat.size / 1_000_000).toFixed(1)}MB (max 10MB)`);
       }
-      const content = fs.readFileSync(file_path, 'utf-8');
 
+      const config = loadConfig();
       const taskPrompts: Record<string, string> = {
         summarize: 'Provide a concise summary of what this code does, its key functions, and its purpose.',
         find_bugs: 'Review this code for bugs, potential issues, and improvements. List each issue clearly.',
@@ -180,25 +191,44 @@ server.tool(
         refactor: 'Suggest refactoring improvements for this code. Focus on readability, maintainability, and best practices.',
       };
 
-      const prompt = `${taskPrompts[task]}\n\nFile: ${file_path}\n\n\`\`\`\n${content}\n\`\`\``;
+      const prompt = `${taskPrompts[task]}\n\nFile: ${file_path}`;
 
-      const result = await ollamaChat(prompt, {
+      // Kill switch: fall back to direct ollamaChat with full file content
+      if (!config.light_pass.enabled) {
+        const content = fs.readFileSync(file_path, 'utf-8');
+        const fullPrompt = `${prompt}\n\n\`\`\`\n${content}\n\`\`\``;
+        const result = await ollamaChat(fullPrompt, { model, system_prompt: 'You are an expert code reviewer. Be specific and actionable.', temperature: 0.3 });
+        logCompletion({ tokens_used: result.tokens_used, model: result.model, duration_ms: result.duration_ms, tool: 'claudesaver_analyze_file' });
+        const resp: Record<string, unknown> = { analysis: result.response, task, file_path, model: result.model, tokens_used: result.tokens_used, duration_ms: result.duration_ms };
+        if (result.thinking) resp.thinking = result.thinking;
+        return ok(resp);
+      }
+
+      // Use light pass with context pipeline — file gets sliced instead of sent whole
+      const lpResult = await executeLightPass(prompt, {
+        tool: 'claudesaver_analyze_file',
         model,
         system_prompt: 'You are an expert code reviewer. Be specific and actionable.',
-        temperature: 0.3,
+        fileRefs: [file_path],
+        allowedFiles: [file_path],
       });
 
-      logCompletion({ tokens_used: result.tokens_used, model: result.model, duration_ms: result.duration_ms, tool: 'claudesaver_analyze_file' });
-      const resp: Record<string, unknown> = {
-        analysis: result.response,
-        task,
-        file_path,
-        model: result.model,
-        tokens_used: result.tokens_used,
-        duration_ms: result.duration_ms,
-      };
-      if (result.thinking) resp.thinking = result.thinking;
-      return ok(resp);
+      // Reshape successful response to analysis format
+      if (!lpResult.escalated) {
+        return ok({
+          analysis: lpResult.response,
+          task,
+          file_path,
+          model: lpResult.model,
+          tokens_used: lpResult.tokens_used,
+          duration_ms: lpResult.duration_ms,
+          quality: lpResult.quality,
+          routing: lpResult.routing,
+          ...(lpResult.thinking ? { thinking: lpResult.thinking } : {}),
+        });
+      }
+
+      return ok(lpResult);
     } catch (e) {
       return err(e instanceof Error ? e.message : String(e));
     }
@@ -455,15 +485,20 @@ server.tool(
 
 server.tool(
   'claudesaver_metrics',
-  'View token savings metrics and routing statistics.',
+  'View token savings metrics, routing statistics, and delegation quality data.',
   {
-    action: z.enum(['summary', 'reset', 'session']).describe('"summary" shows cumulative stats, "reset" clears history, "session" shows current session'),
+    action: z.enum(['summary', 'reset', 'session', 'delegation']).describe('"summary" shows cumulative stats, "reset" clears history, "session" shows current session, "delegation" shows light pass quality stats'),
   },
   async ({ action }) => {
     try {
       if (action === 'reset') {
         resetMetrics();
         return ok({ message: 'Metrics reset successfully' });
+      }
+
+      if (action === 'delegation') {
+        const delegationSummary = computeDelegationSummary();
+        return ok(delegationSummary);
       }
 
       const summary = computeSummary();

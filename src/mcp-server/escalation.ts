@@ -6,7 +6,8 @@ export type FailureSignal =
   | 'incomplete'
   | 'repetition_loop'
   | 'wrong_language'
-  | 'confidence_caveat';
+  | 'confidence_caveat'
+  | 'placeholder_markers';
 
 export interface EscalationResult {
   accept: boolean;
@@ -61,6 +62,11 @@ export function detectFailureSignals(
   const hedgeCount = (output.match(/\b(i think|maybe|possibly|not sure|might|perhaps|i believe)\b/gi) ?? []).length;
   if (hedgeCount >= 3) {
     signals.push('confidence_caveat');
+  }
+
+  // Placeholder markers
+  if (/\b(TODO|TBD|FIXME|PLACEHOLDER|XXX|HACK)\b/.test(output)) {
+    signals.push('placeholder_markers');
   }
 
   // Basic syntax error detection for common languages
@@ -147,7 +153,7 @@ function hasObviousSyntaxErrors(output: string, language: string): boolean {
   }
 }
 
-function hasUnmatchedBrackets(code: string): boolean {
+export function hasUnmatchedBrackets(code: string): boolean {
   let parens = 0, brackets = 0;
   for (const ch of code) {
     if (ch === '(') parens++;
@@ -159,7 +165,7 @@ function hasUnmatchedBrackets(code: string): boolean {
   return Math.abs(parens) > 2 || Math.abs(brackets) > 2;
 }
 
-function hasUnmatchedBraces(code: string): boolean {
+export function hasUnmatchedBraces(code: string): boolean {
   let braces = 0;
   for (const ch of code) {
     if (ch === '{') braces++;
