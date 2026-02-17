@@ -65,6 +65,10 @@ describe('Static Pattern Matching (Layer 1)', () => {
       ['create interface for UserProfile', 'local', 2],
       ['create a type definition for the config', 'local', 2],
       ['create fixture for the test', 'local', 2],
+      ['add logging to the authentication service', 'local', 2],
+      ['write a readme for this project', 'local', 2],
+      ['explain this error message', 'local', 2],
+      ['write getter for user name', 'local', 2],
     ] as const;
 
     it.each(level2Cases)('"%s" → route=%s, level=%d', (desc, expectedRoute, expectedLevel) => {
@@ -82,13 +86,30 @@ describe('Static Pattern Matching (Layer 1)', () => {
       ['create a crud endpoint for users', 'local', 3],
       ['implement function to parse CSV', 'local', 3],
       ['extract function from this long method', 'local', 3],
-      ['add logging to the authentication service', 'local', 3],
-      ['write a readme for this project', 'local', 3],
       ['create a dockerfile for the app', 'local', 3],
       ['create a github action for CI', 'local', 3],
     ] as const;
 
     it.each(level3Cases)('"%s" → route=%s, level=%d', (desc, expectedRoute, expectedLevel) => {
+      const result = matchPatterns(desc);
+      expect(result.matched).toBe(true);
+      if (result.matched) {
+        expect(result.rule.route).toBe(expectedRoute);
+        expect(result.rule.level).toBe(expectedLevel);
+      }
+    });
+  });
+
+  describe('Level 4 — Large local model', () => {
+    const level4Cases = [
+      ['debug this intermittent failure', 'local', 4],
+      ['why is this failing on CI', 'local', 4],
+      ['fix this error in the parser', 'local', 4],
+      ['optimize this function for speed', 'local', 4],
+      ['write integration test for the API', 'local', 4],
+    ] as const;
+
+    it.each(level4Cases)('"%s" → route=%s, level=%d', (desc, expectedRoute, expectedLevel) => {
       const result = matchPatterns(desc);
       expect(result.matched).toBe(true);
       if (result.matched) {
@@ -104,7 +125,7 @@ describe('Static Pattern Matching (Layer 1)', () => {
       ['security audit of the auth module', 'cloud_recommended', 5],
       ['refactor entire codebase to use new pattern', 'cloud_recommended', 5],
       ['optimize algorithm for graph traversal', 'cloud_recommended', 5],
-      ['debug this intermittent failure', 'cloud_recommended', 5],
+      ['trace this bug across multiple services', 'cloud_recommended', 5],
       ['threat model for the API', 'cloud_recommended', 5],
       ['migrate from Express to Fastify', 'cloud_recommended', 5],
     ] as const;

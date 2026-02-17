@@ -107,7 +107,9 @@ function computeReasoningDepth(text: string): number {
 }
 
 function detectToolChain(text: string): boolean {
-  return /\b(fix|debug|make it work|until|iterate|try|keep trying|back and forth|test.*fix)\b/i.test(text);
+  // Only trigger on patterns indicating iterative fix cycles, not simple "fix X" requests.
+  // "fix indentation" or "fix the typo" are trivial — "debug and fix until tests pass" is iterative.
+  return /\b(make it work|until|iterate|keep trying|back and forth|test.*fix|fix.*test|debug.*fix|try.*different)\b/i.test(text);
 }
 
 function inferOutputType(text: string): OutputType {

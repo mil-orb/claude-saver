@@ -31,7 +31,7 @@ export const LEVEL_CONFIGS: Record<number, LevelConfig> = {
   0: { ceiling: -1, escalation: 'none', skipClassification: true, tryLocalFirst: false },
   1: { ceiling: 2, escalation: 'immediate', skipClassification: false, tryLocalFirst: false },
   2: { ceiling: 3, escalation: 'standard', skipClassification: false, tryLocalFirst: false },
-  3: { ceiling: 4, escalation: 'tolerant', skipClassification: false, tryLocalFirst: true },
+  3: { ceiling: 5, escalation: 'tolerant', skipClassification: false, tryLocalFirst: true },
   4: { ceiling: 6, escalation: 'minimal', skipClassification: false, tryLocalFirst: true },
   5: { ceiling: 6, escalation: 'never', skipClassification: true, tryLocalFirst: true },
 };

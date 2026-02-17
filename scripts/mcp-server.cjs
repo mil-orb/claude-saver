@@ -21520,6 +21520,21 @@ var STATIC_PATTERNS = [
     cost_of_wrong: "low",
     category: "refactor"
   },
+  {
+    patterns: [
+      "add return type",
+      "create constant",
+      "extract constant",
+      "add export",
+      "remove unused",
+      "dead code"
+    ],
+    route: "local",
+    level: 1,
+    confidence: 0.9,
+    cost_of_wrong: "trivial",
+    category: "codegen"
+  },
   // ═══════════════════════════════════════════════════════════
   // LEVEL 2 — SMALL LOCAL MODEL (7-8B)
   // ═══════════════════════════════════════════════════════════
@@ -21597,6 +21612,61 @@ var STATIC_PATTERNS = [
     cost_of_wrong: "low",
     category: "codegen"
   },
+  {
+    patterns: [
+      "add logging",
+      "add metrics",
+      "add monitoring",
+      "add telemetry",
+      "instrument"
+    ],
+    route: "local",
+    level: 2,
+    confidence: 0.85,
+    cost_of_wrong: "low",
+    category: "codegen"
+  },
+  {
+    patterns: [
+      "readme",
+      "documentation",
+      "api docs",
+      "usage example",
+      "getting started guide"
+    ],
+    route: "local",
+    level: 2,
+    confidence: 0.85,
+    cost_of_wrong: "low",
+    category: "docs"
+  },
+  {
+    patterns: [
+      "explain this error",
+      "what does this regex",
+      "what is this pattern",
+      "how does this work"
+    ],
+    route: "local",
+    level: 2,
+    confidence: 0.85,
+    cost_of_wrong: "trivial",
+    category: "analysis"
+  },
+  {
+    patterns: [
+      "write getter",
+      "write setter",
+      "add accessor",
+      "generate constructor",
+      "create factory"
+    ],
+    route: "local",
+    level: 2,
+    confidence: 0.85,
+    cost_of_wrong: "low",
+    category: "codegen"
+  },
   // ═══════════════════════════════════════════════════════════
   // LEVEL 3 — MEDIUM LOCAL MODEL (12-32B)
   // ═══════════════════════════════════════════════════════════
@@ -21645,34 +21715,6 @@ var STATIC_PATTERNS = [
   },
   {
     patterns: [
-      "add logging",
-      "add metrics",
-      "add monitoring",
-      "add telemetry",
-      "instrument"
-    ],
-    route: "local",
-    level: 3,
-    confidence: 0.8,
-    cost_of_wrong: "low",
-    category: "codegen"
-  },
-  {
-    patterns: [
-      "readme",
-      "documentation",
-      "api docs",
-      "usage example",
-      "getting started guide"
-    ],
-    route: "local",
-    level: 3,
-    confidence: 0.85,
-    cost_of_wrong: "low",
-    category: "docs"
-  },
-  {
-    patterns: [
       "dockerfile",
       "docker compose",
       "makefile",
@@ -21687,8 +21729,65 @@ var STATIC_PATTERNS = [
     cost_of_wrong: "medium",
     category: "devops"
   },
+  {
+    patterns: [
+      "write migration",
+      "add middleware",
+      "create hook",
+      "add decorator",
+      "write plugin"
+    ],
+    route: "local",
+    level: 3,
+    confidence: 0.75,
+    cost_of_wrong: "medium",
+    category: "codegen"
+  },
   // ═══════════════════════════════════════════════════════════
-  // CLOUD — LEVEL 5+ (Sonnet/Opus)
+  // LEVEL 4 — LARGE LOCAL MODEL (32-70B) — complex but local-capable
+  // ═══════════════════════════════════════════════════════════
+  {
+    patterns: [
+      "debug this",
+      "why is this failing",
+      "fix this error",
+      "why does this return",
+      "what is wrong with"
+    ],
+    route: "local",
+    level: 4,
+    confidence: 0.65,
+    cost_of_wrong: "medium",
+    category: "analysis"
+  },
+  {
+    patterns: [
+      "optimize this function",
+      "make this faster",
+      "reduce memory usage",
+      "improve performance of"
+    ],
+    route: "local",
+    level: 4,
+    confidence: 0.65,
+    cost_of_wrong: "medium",
+    category: "analysis"
+  },
+  {
+    patterns: [
+      "write integration test",
+      "end to end test",
+      "test the full flow",
+      "acceptance test"
+    ],
+    route: "local",
+    level: 4,
+    confidence: 0.7,
+    cost_of_wrong: "medium",
+    category: "tests"
+  },
+  // ═══════════════════════════════════════════════════════════
+  // CLOUD — LEVEL 5+ (Sonnet/Opus) — requires cloud reasoning
   // ═══════════════════════════════════════════════════════════
   {
     patterns: [
@@ -21748,15 +21847,16 @@ var STATIC_PATTERNS = [
   },
   {
     patterns: [
-      "debug this",
-      "why is this failing",
       "trace this bug",
       "root cause",
-      "investigate"
+      "investigate",
+      "race condition",
+      "deadlock",
+      "memory leak"
     ],
     route: "cloud_recommended",
     level: 5,
-    confidence: 0.65,
+    confidence: 0.75,
     cost_of_wrong: "high",
     category: "analysis"
   }
@@ -21866,7 +21966,7 @@ function computeReasoningDepth(text) {
   return Math.min(depth, 1);
 }
 function detectToolChain(text) {
-  return /\b(fix|debug|make it work|until|iterate|try|keep trying|back and forth|test.*fix)\b/i.test(text);
+  return /\b(make it work|until|iterate|keep trying|back and forth|test.*fix|fix.*test|debug.*fix|try.*different)\b/i.test(text);
 }
 function inferOutputType(text) {
   if (/\b(convert|format|transform|parse|serialize|deserialize|json|yaml|csv)\b/i.test(text)) {
@@ -22147,7 +22247,7 @@ var LEVEL_CONFIGS = {
   0: { ceiling: -1, escalation: "none", skipClassification: true, tryLocalFirst: false },
   1: { ceiling: 2, escalation: "immediate", skipClassification: false, tryLocalFirst: false },
   2: { ceiling: 3, escalation: "standard", skipClassification: false, tryLocalFirst: false },
-  3: { ceiling: 4, escalation: "tolerant", skipClassification: false, tryLocalFirst: true },
+  3: { ceiling: 5, escalation: "tolerant", skipClassification: false, tryLocalFirst: true },
   4: { ceiling: 6, escalation: "minimal", skipClassification: false, tryLocalFirst: true },
   5: { ceiling: 6, escalation: "never", skipClassification: true, tryLocalFirst: true }
 };
