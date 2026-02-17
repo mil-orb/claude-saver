@@ -7,7 +7,27 @@ export interface TriageResult {
   confidence: number;
 }
 
-const TRIAGE_PROMPT = `You are a task classifier. Classify the following coding task into exactly one category. Respond with ONLY the category name, nothing else.
+/**
+ * JSON schema sent to Ollama's `format` field for structured output.
+ * Ollama validates output against this, guaranteeing parseable JSON.
+ */
+const TRIAGE_SCHEMA = {
+  type: 'object',
+  properties: {
+    category: {
+      type: 'string',
+      enum: ['TRIVIAL', 'SIMPLE', 'MODERATE', 'COMPLEX', 'EXPERT'],
+    },
+    confidence: {
+      type: 'number',
+      minimum: 0,
+      maximum: 1,
+    },
+  },
+  required: ['category'],
+};
+
+const TRIAGE_PROMPT = `Classify this coding task into exactly one category. Return JSON with "category" and "confidence" (0-1).
 
 Categories:
 - TRIVIAL: docstrings, comments, formatting, renaming, simple regex
@@ -16,9 +36,7 @@ Categories:
 - COMPLEX: multi-file changes, architecture decisions, debugging, optimization
 - EXPERT: system design, security analysis, novel algorithms, major migrations
 
-Task: {task_description}
-
-Category:`;
+Task: {task_description}`;
 
 const CATEGORY_TO_LEVEL: Record<string, number> = {
   trivial: 1,
@@ -27,6 +45,11 @@ const CATEGORY_TO_LEVEL: Record<string, number> = {
   complex: 5,
   expert: 6,
 };
+
+interface TriageJson {
+  category?: string;
+  confidence?: number;
+}
 
 export async function triageWithLocalModel(taskDescription: string): Promise<TriageResult> {
   const config = loadConfig();
@@ -37,14 +60,20 @@ export async function triageWithLocalModel(taskDescription: string): Promise<Tri
     const result = await ollamaChat(prompt, {
       model: triageModel,
       temperature: 0.1,
-      max_tokens: 20,
+      max_tokens: 60,
       timeoutMs: 5000,
+      format: TRIAGE_SCHEMA,
     });
 
-    const response = result.response.trim().toLowerCase();
-    const category = parseTriageResponse(response);
-    const level = CATEGORY_TO_LEVEL[category] ?? 3;
+    // Try structured JSON parse first
+    const parsed = parseTriageJson(result.response);
+    if (parsed) {
+      return parsed;
+    }
 
+    // Fallback: substring matching for models that ignore format
+    const category = parseTriageText(result.response.trim().toLowerCase());
+    const level = CATEGORY_TO_LEVEL[category] ?? 3;
     return {
       category,
       level,
@@ -60,15 +89,35 @@ export async function triageWithLocalModel(taskDescription: string): Promise<Tri
   }
 }
 
-function parseTriageResponse(response: string): string {
-  // Extract the category from potentially messy output
-  const categories = ['trivial', 'simple', 'moderate', 'complex', 'expert'];
+function parseTriageJson(response: string): TriageResult | null {
+  try {
+    const json = JSON.parse(response) as TriageJson;
+    const rawCategory = (json.category ?? '').toLowerCase();
+    if (!(rawCategory in CATEGORY_TO_LEVEL)) return null;
 
+    const modelConfidence = typeof json.confidence === 'number'
+      ? Math.min(1, Math.max(0, json.confidence))
+      : 0.7;
+
+    // Clamp model-reported confidence: don't trust <0.3 or >0.95
+    const confidence = Math.min(0.95, Math.max(0.3, modelConfidence));
+
+    return {
+      category: rawCategory,
+      level: CATEGORY_TO_LEVEL[rawCategory],
+      confidence,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function parseTriageText(response: string): string {
+  const categories = ['trivial', 'simple', 'moderate', 'complex', 'expert'];
   for (const cat of categories) {
     if (response.includes(cat)) {
       return cat;
     }
   }
-
   return 'unknown';
 }

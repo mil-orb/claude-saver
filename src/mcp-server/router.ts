@@ -2,6 +2,7 @@ import { matchPatterns, type CostOfWrong } from './patterns.js';
 import { extractSignals, computeComplexityScore, scoreToLevel } from './signals.js';
 import { triageWithLocalModel } from './triage.js';
 import { loadConfig } from './config.js';
+import { getRecommendation } from './learner.js';
 
 export type RouteDecision = 'no_llm' | 'local' | 'cloud';
 export type EscalationPolicy = 'none' | 'immediate' | 'standard' | 'tolerant' | 'minimal' | 'never';
@@ -153,14 +154,27 @@ export async function classifyTask(
     };
   }
 
-  // Apply ceiling check from Layer 2
-  if (complexityLevel > levelConfig.ceiling) {
+  // ── LAYER 5: Historical Learning ──
+  // Apply learner adjustment to the proposed level from Layer 2.
+  // The learner checks success rates for this task type at the proposed level
+  // and may suggest a different level or adjust confidence.
+  // Use output_type as task type key since pattern-based specialist_key isn't available at Layer 2.
+  const taskType = signals.output_type;
+  const recommendation = getRecommendation(taskType, complexityLevel);
+
+  const effectiveLevel = recommendation.adjusted_level ?? complexityLevel;
+  const effectiveConfidence = Math.min(1, Math.max(0.1, 0.6 + recommendation.confidence_adjustment));
+
+  // Apply ceiling check with potentially adjusted level
+  if (effectiveLevel > levelConfig.ceiling) {
     return {
       route: 'cloud',
       delegation_level: level as 0 | 1 | 2 | 3 | 4 | 5,
-      task_complexity: complexityLevel,
-      confidence: 0.6,
-      reason: `Heuristic score ${score.toFixed(2)} → Level ${complexityLevel}, exceeds ceiling (${levelConfig.ceiling})`,
+      task_complexity: effectiveLevel,
+      confidence: effectiveConfidence,
+      reason: recommendation.sample_size > 0
+        ? `Heuristic score ${score.toFixed(2)} → Level ${complexityLevel}, adjusted to ${effectiveLevel} by learner (${recommendation.reason}), exceeds ceiling (${levelConfig.ceiling})`
+        : `Heuristic score ${score.toFixed(2)} → Level ${complexityLevel}, exceeds ceiling (${levelConfig.ceiling})`,
       classification_layer: 2,
       cost_of_wrong: signals.cost_of_wrong,
       escalation_policy: levelConfig.escalation,
@@ -168,13 +182,15 @@ export async function classifyTask(
   }
 
   return {
-    route: complexityLevel === 0 ? 'no_llm' : 'local',
+    route: effectiveLevel === 0 ? 'no_llm' : 'local',
     delegation_level: level as 0 | 1 | 2 | 3 | 4 | 5,
-    task_complexity: complexityLevel,
-    confidence: 0.6,
-    reason: `Heuristic score ${score.toFixed(2)} → Level ${complexityLevel} → local`,
+    task_complexity: effectiveLevel,
+    confidence: effectiveConfidence,
+    reason: recommendation.sample_size > 0
+      ? `Heuristic score ${score.toFixed(2)} → Level ${complexityLevel}, adjusted to ${effectiveLevel} by learner (${recommendation.reason}) → local`
+      : `Heuristic score ${score.toFixed(2)} → Level ${complexityLevel} → local`,
     classification_layer: 2,
-    suggested_model: MODEL_LADDER[complexityLevel],
+    suggested_model: MODEL_LADDER[effectiveLevel],
     cost_of_wrong: signals.cost_of_wrong,
     escalation_policy: levelConfig.escalation,
   };

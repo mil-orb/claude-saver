@@ -3222,8 +3222,8 @@ var require_utils = __commonJS({
       }
       return ind;
     }
-    function removeDotSegments(path4) {
-      let input = path4;
+    function removeDotSegments(path5) {
+      let input = path5;
       const output = [];
       let nextSlash = -1;
       let len = 0;
@@ -3422,8 +3422,8 @@ var require_schemes = __commonJS({
         wsComponent.secure = void 0;
       }
       if (wsComponent.resourceName) {
-        const [path4, query] = wsComponent.resourceName.split("?");
-        wsComponent.path = path4 && path4 !== "/" ? path4 : void 0;
+        const [path5, query] = wsComponent.resourceName.split("?");
+        wsComponent.path = path5 && path5 !== "/" ? path5 : void 0;
         wsComponent.query = query;
         wsComponent.resourceName = void 0;
       }
@@ -6785,12 +6785,12 @@ var require_dist = __commonJS({
         throw new Error(`Unknown format "${name}"`);
       return f;
     };
-    function addFormats(ajv, list, fs5, exportName) {
+    function addFormats(ajv, list, fs6, exportName) {
       var _a;
       var _b;
       (_a = (_b = ajv.opts.code).formats) !== null && _a !== void 0 ? _a : _b.formats = (0, codegen_1._)`require("ajv-formats/dist/formats").${exportName}`;
       for (const f of list)
-        ajv.addFormat(f, fs5[f]);
+        ajv.addFormat(f, fs6[f]);
     }
     module2.exports = exports2 = formatsPlugin;
     Object.defineProperty(exports2, "__esModule", { value: true });
@@ -7276,8 +7276,8 @@ function getErrorMap() {
 
 // node_modules/zod/v3/helpers/parseUtil.js
 var makeIssue = (params) => {
-  const { data, path: path4, errorMaps, issueData } = params;
-  const fullPath = [...path4, ...issueData.path || []];
+  const { data, path: path5, errorMaps, issueData } = params;
+  const fullPath = [...path5, ...issueData.path || []];
   const fullIssue = {
     ...issueData,
     path: fullPath
@@ -7393,11 +7393,11 @@ var errorUtil;
 
 // node_modules/zod/v3/types.js
 var ParseInputLazyPath = class {
-  constructor(parent, value, path4, key) {
+  constructor(parent, value, path5, key) {
     this._cachedPath = [];
     this.parent = parent;
     this.data = value;
-    this._path = path4;
+    this._path = path5;
     this._key = key;
   }
   get path() {
@@ -11035,10 +11035,10 @@ function assignProp(target, prop, value) {
     configurable: true
   });
 }
-function getElementAtPath(obj, path4) {
-  if (!path4)
+function getElementAtPath(obj, path5) {
+  if (!path5)
     return obj;
-  return path4.reduce((acc, key) => acc?.[key], obj);
+  return path5.reduce((acc, key) => acc?.[key], obj);
 }
 function promiseAllObject(promisesObj) {
   const keys = Object.keys(promisesObj);
@@ -11358,11 +11358,11 @@ function aborted(x, startIndex = 0) {
   }
   return false;
 }
-function prefixIssues(path4, issues) {
+function prefixIssues(path5, issues) {
   return issues.map((iss) => {
     var _a;
     (_a = iss).path ?? (_a.path = []);
-    iss.path.unshift(path4);
+    iss.path.unshift(path5);
     return iss;
   });
 }
@@ -20848,7 +20848,7 @@ var StdioServerTransport = class {
 };
 
 // src/mcp-server/index.ts
-var fs4 = __toESM(require("fs"), 1);
+var fs5 = __toESM(require("fs"), 1);
 
 // src/mcp-server/config.ts
 var fs = __toESM(require("fs"), 1);
@@ -20976,6 +20976,9 @@ async function ollamaChat(prompt, options) {
       num_predict: options?.max_tokens ?? 8192
     }
   };
+  if (options?.format) {
+    body.format = options.format;
+  }
   const start = Date.now();
   const response = await fetchWithTimeout(`${baseUrl}/api/chat`, timeoutMs, {
     method: "POST",
@@ -21935,7 +21938,22 @@ function scoreToLevel(score) {
 }
 
 // src/mcp-server/triage.ts
-var TRIAGE_PROMPT = `You are a task classifier. Classify the following coding task into exactly one category. Respond with ONLY the category name, nothing else.
+var TRIAGE_SCHEMA = {
+  type: "object",
+  properties: {
+    category: {
+      type: "string",
+      enum: ["TRIVIAL", "SIMPLE", "MODERATE", "COMPLEX", "EXPERT"]
+    },
+    confidence: {
+      type: "number",
+      minimum: 0,
+      maximum: 1
+    }
+  },
+  required: ["category"]
+};
+var TRIAGE_PROMPT = `Classify this coding task into exactly one category. Return JSON with "category" and "confidence" (0-1).
 
 Categories:
 - TRIVIAL: docstrings, comments, formatting, renaming, simple regex
@@ -21944,9 +21962,7 @@ Categories:
 - COMPLEX: multi-file changes, architecture decisions, debugging, optimization
 - EXPERT: system design, security analysis, novel algorithms, major migrations
 
-Task: {task_description}
-
-Category:`;
+Task: {task_description}`;
 var CATEGORY_TO_LEVEL = {
   trivial: 1,
   simple: 2,
@@ -21962,11 +21978,15 @@ async function triageWithLocalModel(taskDescription) {
     const result = await ollamaChat(prompt, {
       model: triageModel,
       temperature: 0.1,
-      max_tokens: 20,
-      timeoutMs: 5e3
+      max_tokens: 60,
+      timeoutMs: 5e3,
+      format: TRIAGE_SCHEMA
     });
-    const response = result.response.trim().toLowerCase();
-    const category = parseTriageResponse(response);
+    const parsed = parseTriageJson(result.response);
+    if (parsed) {
+      return parsed;
+    }
+    const category = parseTriageText(result.response.trim().toLowerCase());
     const level = CATEGORY_TO_LEVEL[category] ?? 3;
     return {
       category,
@@ -21981,7 +22001,23 @@ async function triageWithLocalModel(taskDescription) {
     };
   }
 }
-function parseTriageResponse(response) {
+function parseTriageJson(response) {
+  try {
+    const json = JSON.parse(response);
+    const rawCategory = (json.category ?? "").toLowerCase();
+    if (!(rawCategory in CATEGORY_TO_LEVEL)) return null;
+    const modelConfidence = typeof json.confidence === "number" ? Math.min(1, Math.max(0, json.confidence)) : 0.7;
+    const confidence = Math.min(0.95, Math.max(0.3, modelConfidence));
+    return {
+      category: rawCategory,
+      level: CATEGORY_TO_LEVEL[rawCategory],
+      confidence
+    };
+  } catch {
+    return null;
+  }
+}
+function parseTriageText(response) {
   const categories = ["trivial", "simple", "moderate", "complex", "expert"];
   for (const cat of categories) {
     if (response.includes(cat)) {
@@ -21989,6 +22025,63 @@ function parseTriageResponse(response) {
     }
   }
   return "unknown";
+}
+
+// src/mcp-server/learner.ts
+var fs3 = __toESM(require("fs"), 1);
+var path3 = __toESM(require("path"), 1);
+var os2 = __toESM(require("os"), 1);
+function getHistoryPath() {
+  return path3.join(os2.homedir(), ".claudesaver", "history.jsonl");
+}
+function loadHistory() {
+  try {
+    const historyPath = getHistoryPath();
+    if (!fs3.existsSync(historyPath)) return [];
+    const content = fs3.readFileSync(historyPath, "utf-8");
+    return content.split("\n").filter((line) => line.trim()).map((line) => {
+      try {
+        return JSON.parse(line);
+      } catch {
+        return null;
+      }
+    }).filter((r) => r !== null);
+  } catch {
+    return [];
+  }
+}
+function getRecommendation(taskType, proposedLevel) {
+  const config2 = loadConfig();
+  if (!config2.routing.use_historical_learning) {
+    return { confidence_adjustment: 0, reason: "Historical learning disabled", sample_size: 0 };
+  }
+  const history = loadHistory();
+  if (history.length < 50) {
+    return { confidence_adjustment: 0, reason: `Insufficient data (${history.length}/50 records)`, sample_size: history.length };
+  }
+  const relevant = history.filter((r) => r.task_type === taskType);
+  if (relevant.length < 10) {
+    return { confidence_adjustment: 0, reason: `Insufficient data for task type "${taskType}"`, sample_size: relevant.length };
+  }
+  const atLevel = relevant.filter((r) => r.level_used === proposedLevel);
+  if (atLevel.length < 5) {
+    return { confidence_adjustment: 0, reason: `Insufficient data at level ${proposedLevel}`, sample_size: atLevel.length };
+  }
+  const successCount = atLevel.filter((r) => r.outcome === "success").length;
+  const successRate = successCount / atLevel.length;
+  const adjustment = (successRate - 0.5) * 0.4;
+  let adjustedLevel;
+  if (successRate > 0.85 && proposedLevel > 1) {
+    adjustedLevel = proposedLevel - 1;
+  } else if (successRate < 0.5 && proposedLevel < 5) {
+    adjustedLevel = proposedLevel + 1;
+  }
+  return {
+    adjusted_level: adjustedLevel,
+    confidence_adjustment: adjustment,
+    reason: `${taskType} at level ${proposedLevel}: ${(successRate * 100).toFixed(0)}% success (${atLevel.length} samples)`,
+    sample_size: atLevel.length
+  };
 }
 
 // src/mcp-server/router.ts
@@ -22102,43 +22195,47 @@ async function classifyTask(taskDescription, options) {
       escalation_policy: levelConfig.escalation
     };
   }
-  if (complexityLevel > levelConfig.ceiling) {
+  const taskType = signals.output_type;
+  const recommendation = getRecommendation(taskType, complexityLevel);
+  const effectiveLevel = recommendation.adjusted_level ?? complexityLevel;
+  const effectiveConfidence = Math.min(1, Math.max(0.1, 0.6 + recommendation.confidence_adjustment));
+  if (effectiveLevel > levelConfig.ceiling) {
     return {
       route: "cloud",
       delegation_level: level,
-      task_complexity: complexityLevel,
-      confidence: 0.6,
-      reason: `Heuristic score ${score.toFixed(2)} \u2192 Level ${complexityLevel}, exceeds ceiling (${levelConfig.ceiling})`,
+      task_complexity: effectiveLevel,
+      confidence: effectiveConfidence,
+      reason: recommendation.sample_size > 0 ? `Heuristic score ${score.toFixed(2)} \u2192 Level ${complexityLevel}, adjusted to ${effectiveLevel} by learner (${recommendation.reason}), exceeds ceiling (${levelConfig.ceiling})` : `Heuristic score ${score.toFixed(2)} \u2192 Level ${complexityLevel}, exceeds ceiling (${levelConfig.ceiling})`,
       classification_layer: 2,
       cost_of_wrong: signals.cost_of_wrong,
       escalation_policy: levelConfig.escalation
     };
   }
   return {
-    route: complexityLevel === 0 ? "no_llm" : "local",
+    route: effectiveLevel === 0 ? "no_llm" : "local",
     delegation_level: level,
-    task_complexity: complexityLevel,
-    confidence: 0.6,
-    reason: `Heuristic score ${score.toFixed(2)} \u2192 Level ${complexityLevel} \u2192 local`,
+    task_complexity: effectiveLevel,
+    confidence: effectiveConfidence,
+    reason: recommendation.sample_size > 0 ? `Heuristic score ${score.toFixed(2)} \u2192 Level ${complexityLevel}, adjusted to ${effectiveLevel} by learner (${recommendation.reason}) \u2192 local` : `Heuristic score ${score.toFixed(2)} \u2192 Level ${complexityLevel} \u2192 local`,
     classification_layer: 2,
-    suggested_model: MODEL_LADDER[complexityLevel],
+    suggested_model: MODEL_LADDER[effectiveLevel],
     cost_of_wrong: signals.cost_of_wrong,
     escalation_policy: levelConfig.escalation
   };
 }
 
 // src/mcp-server/metrics.ts
-var fs3 = __toESM(require("fs"), 1);
-var path3 = __toESM(require("path"), 1);
-var os2 = __toESM(require("os"), 1);
+var fs4 = __toESM(require("fs"), 1);
+var path4 = __toESM(require("path"), 1);
+var os3 = __toESM(require("os"), 1);
 function getMetricsPath() {
-  return path3.join(os2.homedir(), ".claudesaver", "metrics.jsonl");
+  return path4.join(os3.homedir(), ".claudesaver", "metrics.jsonl");
 }
 function loadMetrics() {
   try {
     const metricsPath = getMetricsPath();
-    if (!fs3.existsSync(metricsPath)) return [];
-    const content = fs3.readFileSync(metricsPath, "utf-8");
+    if (!fs4.existsSync(metricsPath)) return [];
+    const content = fs4.readFileSync(metricsPath, "utf-8");
     return content.split("\n").filter((line) => line.trim()).map((line) => {
       try {
         return JSON.parse(line);
@@ -22151,9 +22248,9 @@ function loadMetrics() {
   }
 }
 function ensureDir(filePath) {
-  const dir = path3.dirname(filePath);
-  if (!fs3.existsSync(dir)) {
-    fs3.mkdirSync(dir, { recursive: true });
+  const dir = path4.dirname(filePath);
+  if (!fs4.existsSync(dir)) {
+    fs4.mkdirSync(dir, { recursive: true });
   }
 }
 function logCompletion(entry) {
@@ -22169,7 +22266,7 @@ function logCompletion(entry) {
       tool: entry.tool,
       session_id: process.env["CLAUDE_SESSION_ID"] ?? "unknown"
     };
-    fs3.appendFileSync(metricsPath, JSON.stringify(record2) + "\n", "utf-8");
+    fs4.appendFileSync(metricsPath, JSON.stringify(record2) + "\n", "utf-8");
   } catch {
   }
 }
@@ -22210,8 +22307,8 @@ function computeSummary(entries, costPerMillionTokens) {
 function resetMetrics() {
   try {
     const metricsPath = getMetricsPath();
-    if (fs3.existsSync(metricsPath)) {
-      fs3.writeFileSync(metricsPath, "", "utf-8");
+    if (fs4.existsSync(metricsPath)) {
+      fs4.writeFileSync(metricsPath, "", "utf-8");
     }
   } catch {
   }
@@ -22368,11 +22465,11 @@ server.tool(
   },
   async ({ file_path, task, model }) => {
     try {
-      const fileStat2 = fs4.statSync(file_path);
+      const fileStat2 = fs5.statSync(file_path);
       if (fileStat2.size > 1e7) {
         return err(`File too large: ${(fileStat2.size / 1e6).toFixed(1)}MB (max 10MB)`);
       }
-      const content = fs4.readFileSync(file_path, "utf-8");
+      const content = fs5.readFileSync(file_path, "utf-8");
       const taskPrompts = {
         summarize: "Provide a concise summary of what this code does, its key functions, and its purpose.",
         find_bugs: "Review this code for bugs, potential issues, and improvements. List each issue clearly.",

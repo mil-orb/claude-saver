@@ -67,6 +67,7 @@ export async function ollamaChat(
     max_tokens?: number;
     baseUrl?: string;
     timeoutMs?: number;
+    format?: 'json' | Record<string, unknown>;
   }
 ): Promise<OllamaChatResult> {
   const config = loadConfig();
@@ -81,7 +82,7 @@ export async function ollamaChat(
   }
   messages.push({ role: 'user', content: prompt });
 
-  const body = {
+  const body: Record<string, unknown> = {
     model,
     messages,
     stream: false,
@@ -90,6 +91,10 @@ export async function ollamaChat(
       num_predict: options?.max_tokens ?? 8192,
     },
   };
+
+  if (options?.format) {
+    body.format = options.format;
+  }
 
   const start = Date.now();
   const response = await fetchWithTimeout(`${baseUrl}/api/chat`, timeoutMs, {
