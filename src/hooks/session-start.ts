@@ -144,50 +144,41 @@ function formatTokens(tokens: number): string {
  * Claude has no reason to delegate and will handle everything directly.
  */
 function getDelegationInstructions(level: number): string | null {
+  // Compressed format: Claude already has tool schemas from MCP registration.
+  // These instructions only need to say WHEN to use each tool and WHAT stays cloud.
+  // Every token here is repeated on every API turn for the entire session.
   switch (level) {
     case 0:
       return null; // Manual only — no automatic delegation
     case 1:
       return [
-        'DELEGATION ACTIVE — delegate only trivial tasks to save API tokens:',
-        '- Filesystem metadata (tree, stat, find, git status) → claudesaver_fs',
-        '- Docstrings for individual functions → claudesaver_complete',
-        '- Commit message drafts → claudesaver_complete',
-        'Handle everything else directly. Escalate immediately if local output seems wrong.',
+        'DELEGATION L1: Trivial tasks only → local Ollama.',
+        'claudesaver_fs → fs metadata | claudesaver_complete → docstrings, commit messages',
+        'Escalate immediately if local output seems wrong.',
       ].join('\n');
     case 2:
       return [
-        'DELEGATION ACTIVE — delegate routine coding tasks to local models to save API tokens:',
-        '- Filesystem queries (tree, stat, find, git status/log) → claudesaver_fs',
-        '- Docstrings, comments, commit messages, format conversions → claudesaver_complete',
-        '- Boilerplate, scaffolding, code with clear specs → claudesaver_generate_code',
-        '- File summaries and bug scanning → claudesaver_analyze_file',
-        'Handle directly: architecture decisions, debugging, security review, complex reasoning, anything the user asks for YOUR opinion on.',
+        'DELEGATION L2: Routine coding tasks → local Ollama.',
+        'claudesaver_fs → fs queries | claudesaver_complete → docs, comments, commits, format conversions | claudesaver_generate_code → boilerplate, scaffolding, clear-spec code | claudesaver_analyze_file → summaries, bug scanning',
+        'Cloud: architecture decisions, debugging, security review, complex reasoning, opinion requests.',
       ].join('\n');
     case 3:
       return [
-        'DELEGATION ACTIVE — aggressively delegate to local models. Most coding tasks should go local:',
-        '- Filesystem queries → claudesaver_fs',
-        '- All code generation, documentation, tests, refactoring → claudesaver_complete or claudesaver_generate_code',
-        '- File analysis and review → claudesaver_analyze_file',
-        '- Batch operations → claudesaver_batch',
-        'Handle directly only: architecture decisions, complex multi-file debugging, security-critical review.',
+        'DELEGATION L3: Most coding tasks → local. Delegate aggressively.',
+        'claudesaver_fs → fs | claudesaver_complete or claudesaver_generate_code → all codegen, docs, tests, refactoring | claudesaver_analyze_file → analysis, review | claudesaver_batch → parallel ops',
+        'Cloud only: architecture decisions, complex multi-file debugging, security-critical review.',
       ].join('\n');
     case 4:
       return [
-        'DELEGATION ACTIVE — try ALL tasks locally first:',
-        '- Use claudesaver_complete as your primary tool for all coding tasks.',
-        '- Use claudesaver_fs for all filesystem queries.',
-        '- Use claudesaver_analyze_file for file review.',
-        '- Use claudesaver_generate_code for code generation.',
-        'Only handle directly if local output is poor quality, or the task requires broad codebase reasoning that cannot be provided via context.',
+        'DELEGATION L4: Try ALL tasks locally first.',
+        'claudesaver_complete → primary tool for all coding | claudesaver_fs → fs queries | claudesaver_analyze_file → file review | claudesaver_generate_code → code generation',
+        'Cloud only if local output is poor or task needs broad codebase reasoning.',
       ].join('\n');
     case 5:
       return [
-        'DELEGATION ACTIVE — OFFLINE MODE. Route ALL tasks to local models:',
-        '- claudesaver_complete for all prompts. claudesaver_fs for filesystem.',
-        '- claudesaver_generate_code for code. claudesaver_analyze_file for analysis.',
-        '- If the local model fails or produces poor output, report the failure to the user rather than handling it directly.',
+        'DELEGATION L5 — OFFLINE MODE. ALL tasks → local models.',
+        'claudesaver_complete → prompts | claudesaver_fs → fs | claudesaver_generate_code → code | claudesaver_analyze_file → analysis',
+        'On failure: report the failure to user. Do not handle directly.',
       ].join('\n');
     default:
       return null;
