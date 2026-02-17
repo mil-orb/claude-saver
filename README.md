@@ -158,6 +158,7 @@ Key design choices:
 | Command | Description |
 |---|---|
 | `/claudesaver:settings` | Integrated dashboard — view status, change level, switch models, toggle metrics, reset savings |
+| `/claudesaver:local` | Toggle Local Model Mode — switch between your current level and Level 5 (all tasks local) |
 | `/claudesaver:status` | Quick Ollama health and savings check |
 | `/claudesaver:level` | Get or set delegation level (`/claudesaver:level 3`) |
 | `/claudesaver:config` | Edit configuration interactively |

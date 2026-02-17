@@ -22620,9 +22620,9 @@ var LEVEL_DESCRIPTIONS = {
 };
 server.tool(
   "claudesaver_level",
-  "Get or set the delegation level (0-5). Controls how aggressively tasks are routed to local models.",
+  "Get, set, or toggle the delegation level (0-5). Controls how aggressively tasks are routed to local models.",
   {
-    action: external_exports.enum(["get", "set", "describe"]).describe('"get" current level, "set" change level, "describe" explain all levels'),
+    action: external_exports.enum(["get", "set", "describe", "toggle_local"]).describe('"get" current level, "set" change level, "describe" explain all levels, "toggle_local" switch between current level and Level 5 (offline)'),
     level: external_exports.number().min(0).max(5).optional().describe('Target level for "set" action')
   },
   async ({ action, level }) => {
@@ -22636,6 +22636,24 @@ server.tool(
           current: Number(num) === config2.delegation_level
         }));
         return ok({ levels });
+      }
+      if (action === "toggle_local") {
+        if (config2.delegation_level === 5) {
+          const restoreTo = config2._previous_level ?? 2;
+          config2.delegation_level = restoreTo;
+          delete config2._previous_level;
+        } else {
+          config2._previous_level = config2.delegation_level;
+          config2.delegation_level = 5;
+        }
+        saveConfig(config2);
+        const mode = config2.delegation_level === 5 ? "LOCAL MODE ON" : "LOCAL MODE OFF";
+        return ok({
+          mode,
+          current_level: config2.delegation_level,
+          name: LEVEL_NAMES[config2.delegation_level],
+          description: LEVEL_DESCRIPTIONS[config2.delegation_level]
+        });
       }
       if (action === "set") {
         if (level === void 0) {

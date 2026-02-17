@@ -4,6 +4,7 @@ import * as os from 'os';
 
 export interface ClaudeSaverConfig {
   delegation_level: 0 | 1 | 2 | 3 | 4 | 5;
+  _previous_level?: number; // Used by local mode toggle to remember the level to restore
   ollama: {
     base_url: string;
     default_model: string;
