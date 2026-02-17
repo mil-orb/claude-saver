@@ -70,6 +70,26 @@ Change the level anytime:
 /claudesaver:level
 ```
 
+## Estimated Savings
+
+How much does routing locally actually save? It depends on your delegation level and workload. Here are projections based on measured token counts from real Ollama completions, priced against Claude Opus 4 ($15/M input, $75/M output):
+
+| Level | Tasks/Day | Daily Tokens | Monthly Tokens | Monthly Savings |
+|---|---|---|---|---|
+| 1 — Conservative | 12 | 7K | 158K | ~$9 |
+| **2 — Balanced** (default) | **30** | **30K** | **660K** | **~$40** |
+| 3 — Aggressive | 55 | 77K | 1.7M | ~$102 |
+| 4 — Max Local | 80 | 144K | 3.2M | ~$190 |
+
+At the default level, a typical day saves **~30K cloud tokens** — roughly **$40/month**. Bump to Level 3 and most code generation runs locally, pushing savings to **~$100/month**.
+
+> **Note:** Assumes 5 work days/week, 22 days/month, single developer. Using Sonnet instead of Opus? Divide by ~4. Token counts from measured Ollama completions across docstrings, commit messages, boilerplate, and code generation tasks.
+
+To check your actual savings anytime:
+```
+/claudesaver:status
+```
+
 ## How It Works
 
 ```
@@ -244,7 +264,7 @@ Claude-Saver is part of a growing ecosystem of Claude Code plugins:
 npm install
 npm run build       # esbuild: TypeScript → CJS bundles in scripts/
 npm run dev         # Watch mode
-npm test            # 502 tests (unit + integration + E2E)
+npm test            # 508 tests (unit + integration + E2E)
 npm run typecheck   # tsc --noEmit
 ```
 
