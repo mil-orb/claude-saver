@@ -1,12 +1,9 @@
 import * as esbuild from 'esbuild';
 
-const watch = process.argv.includes('--watch');
+import * as fs from 'fs';
+import * as path from 'path';
 
-const entryPoints = [
-  { in: 'src/mcp-server/index.ts', out: 'mcp-server' },
-  { in: 'src/hooks/session-start.ts', out: 'session-start-hook' },
-  { in: 'src/hooks/subagent-stop.ts', out: 'subagent-stop-hook' },
-];
+const watch = process.argv.includes('--watch');
 
 /** @type {import('esbuild').BuildOptions} */
 const sharedOptions = {
@@ -39,19 +36,35 @@ const subagentStopBuild = {
   outfile: 'scripts/subagent-stop-hook.cjs',
 };
 
+const dashboardBuild = {
+  ...sharedOptions,
+  entryPoints: ['src/dashboard/server.ts'],
+  outfile: 'scripts/dashboard-server.cjs',
+};
+
+async function copyDashboardHTML() {
+  const src = path.resolve('src/dashboard/dashboard.html');
+  const dest = path.resolve('scripts/dashboard.html');
+  fs.copyFileSync(src, dest);
+}
+
 async function build() {
   if (watch) {
     const mcpCtx = await esbuild.context(mcpBuild);
     const hookCtx1 = await esbuild.context(sessionStartBuild);
     const hookCtx2 = await esbuild.context(subagentStopBuild);
-    await Promise.all([mcpCtx.watch(), hookCtx1.watch(), hookCtx2.watch()]);
+    const dashCtx = await esbuild.context(dashboardBuild);
+    await Promise.all([mcpCtx.watch(), hookCtx1.watch(), hookCtx2.watch(), dashCtx.watch()]);
+    await copyDashboardHTML();
     console.log('Watching for changes...');
   } else {
     await Promise.all([
       esbuild.build(mcpBuild),
       esbuild.build(sessionStartBuild),
       esbuild.build(subagentStopBuild),
+      esbuild.build(dashboardBuild),
     ]);
+    await copyDashboardHTML();
   }
 }
 

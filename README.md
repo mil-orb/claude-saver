@@ -1,31 +1,68 @@
 # Claude-Saver
 
-**Route routine coding tasks to local Ollama models. Keep cloud tokens for work that needs them.**
+**Run coding tasks on your local GPU. Save tokens. Keep your code private.**
 
-Claude-Saver is a [Claude Code](https://docs.anthropic.com/en/docs/claude-code) plugin that adds an intelligent delegation layer between Claude and your local GPU. Docstrings, commit messages, boilerplate, format conversions, and file analysis run locally via [Ollama](https://ollama.com/) — architecture decisions, debugging, and security review stay on the cloud API. A 5-layer classification engine handles routing automatically; you just set a delegation level and code normally.
+Claude-Saver is a [Claude Code](https://docs.anthropic.com/en/docs/claude-code) plugin that routes routine work to local [Ollama](https://ollama.com/) models running on your machine. Docstrings, commit messages, boilerplate, format conversions, file analysis, and simple code generation all run locally — while architecture decisions, debugging, and security review stay on the cloud API where they belong.
 
-## Quick Start
+The result: lower API bills, faster responses for simple tasks, and file contents that never leave your machine.
 
-**Prerequisites:** [Claude Code](https://docs.anthropic.com/en/docs/claude-code) CLI, [Ollama](https://ollama.com/) running locally, Node.js >= 18
+---
+
+## Why Claude-Saver?
+
+**Save money.** Every token processed locally is a token you don't pay Anthropic for. At the default delegation level, a typical workday saves ~30K cloud output tokens.
+
+**Honest accounting.** Unlike naive "tokens saved" counters, Claude-Saver tracks the real cost — including the overhead of making tool calls. The dashboard shows net savings after subtracting wrapper costs, so you always know the true picture.
+
+**Keep code private.** The `claudesaver_fs` tools return only metadata (file trees, line counts, git status) — never raw file contents. When you use `claudesaver_analyze_file`, the file is read and analyzed entirely on your local machine. Nothing is sent to any cloud API.
+
+**Nothing breaks.** Claude-Saver is fail-open. If Ollama is down, if a model isn't loaded, if anything goes wrong — Claude works exactly as before. The plugin never blocks your session.
+
+---
+
+## Getting Started
+
+### 1. Install Ollama
+
+Download and install [Ollama](https://ollama.com/download) for your platform. Start it:
 
 ```bash
-# 1. Pull a model (any model works — here are two good starting points)
-ollama pull qwen3:8b           # 5GB, fast, good for most tasks
-ollama pull devstral:24b       # 14GB, stronger code generation
-
-# 2. Install the plugin
-/plugin marketplace add mil-orb/claude-saver
-/plugin install claude-saver
-
-# 3. Start a Claude Code session — you'll see:
-#    [Claude-Saver] Ollama connected (42ms) — Level 2 (Balanced)
-#    Models: qwen3:8b, devstral:24b | Default: qwen3:8b
-#    Savings: No local completions yet — start delegating to save tokens!
+ollama serve
 ```
 
-That's it. Claude will start routing suitable tasks locally.
+### 2. Pull a Model
 
-### Manual Installation
+Claude-Saver works with any Ollama model. Here's the recommended default:
+
+```bash
+# Recommended: strong coding model with 32K context
+ollama pull slekrem/gpt-oss-claude-code-32k:latest
+```
+
+**Alternative models by GPU size:**
+
+| Your GPU VRAM | Model | Pull Command | Notes |
+|---|---|---|---|
+| 4-6 GB | `qwen3:1.7b` | `ollama pull qwen3:1.7b` | Fast, good for docstrings and commits |
+| 6-8 GB | `qwen3:8b` | `ollama pull qwen3:8b` | Good balance of speed and quality |
+| 12-16 GB | `devstral:24b` | `ollama pull devstral:24b` | Strong code generation |
+| 16+ GB | `slekrem/gpt-oss-claude-code-32k` | `ollama pull slekrem/gpt-oss-claude-code-32k:latest` | Recommended default, thinking model with 32K context |
+
+Verify your model is loaded:
+```bash
+ollama list    # Should show your pulled model
+ollama ps      # Shows running models and VRAM usage
+```
+
+### 3. Install the Plugin
+
+```bash
+# Via Claude Code plugin marketplace
+/plugin marketplace add mil-orb/claude-saver
+/plugin install claude-saver
+```
+
+**Or install manually:**
 
 ```bash
 git clone https://github.com/mil-orb/claude-saver.git
@@ -40,9 +77,23 @@ Then add to `.claude/settings.json`:
 }
 ```
 
+### 4. Start a Session
+
+Launch Claude Code. You'll see the welcome message:
+
+```
+[Claude-Saver] Ollama connected (42ms) — Level 2 (Balanced)
+Savings: No local completions yet — delegate 200+ token tasks to save.
+Models: slekrem/gpt-oss-claude-code-32k:latest | Default: slekrem/gpt-oss-claude-code-32k:latest
+```
+
+Claude will now automatically route suitable tasks to your local model.
+
+---
+
 ## What Gets Delegated
 
-At the default level (Level 2 — Balanced), here's the split:
+At the default level (Level 2 — Balanced):
 
 | Runs locally (saves tokens) | Stays on cloud (keeps quality) |
 |---|---|
@@ -50,11 +101,13 @@ At the default level (Level 2 — Balanced), here's the split:
 | Commit messages | Complex multi-file debugging |
 | Format conversions (JSON/YAML/CSV) | Security review |
 | Boilerplate and scaffolding | Novel problem-solving |
-| File summaries and analysis | Anything you ask Claude's opinion on |
-| Simple code generation with clear specs | Multi-step reasoning across a codebase |
+| File summaries and analysis | Multi-step reasoning across a codebase |
+| Simple code generation with clear specs | Anything you ask Claude's opinion on |
 | Unit test boilerplate | Design trade-off discussions |
 
-The boundary shifts based on your delegation level:
+**Break-even rule:** Claude-Saver won't delegate tasks where the expected output is under ~200 tokens. For short answers, the tool-call overhead costs more than it saves — so those are answered directly.
+
+### Delegation Levels
 
 | Level | Name | What goes local |
 |---|---|---|
@@ -65,69 +118,51 @@ The boundary shifts based on your delegation level:
 | 4 | Max Local | Everything attempted locally first, escalate on poor quality |
 | 5 | Offline | All tasks local — no cloud fallback |
 
-Change the level anytime:
+Change your level anytime:
 ```
 /claudesaver:level
 ```
 
-## Estimated Savings
+---
 
-How much does routing locally actually save? It depends on your delegation level and workload. Here are projections based on measured token counts from real Ollama completions, priced against Claude Opus 4 ($15/M input, $75/M output):
+## Dashboard
 
-| Level | Tasks/Day | Daily Tokens | Monthly Tokens | Monthly Savings |
-|---|---|---|---|---|
-| 1 — Conservative | 12 | 7K | 158K | ~$9 |
-| **2 — Balanced** (default) | **30** | **30K** | **660K** | **~$40** |
-| 3 — Aggressive | 55 | 77K | 1.7M | ~$102 |
-| 4 — Max Local | 80 | 144K | 3.2M | ~$190 |
-
-At the default level, a typical day saves **~30K cloud tokens** — roughly **$40/month**. Bump to Level 3 and most code generation runs locally, pushing savings to **~$100/month**.
-
-> **Note:** Assumes 5 work days/week, 22 days/month, single developer. Using Sonnet instead of Opus? Divide by ~4. Token counts from measured Ollama completions across docstrings, commit messages, boilerplate, and code generation tasks.
-
-To check your actual savings anytime:
-```
-/claudesaver:status
-```
-
-## How It Works
+Claude-Saver includes a local web dashboard for visualizing your token economics.
 
 ```
-Session Start
-    │
-    ▼
-SessionStart hook checks Ollama health
-    │
-    ├─ Ollama down? → Plugin stays silent, Claude works normally
-    │
-    └─ Ollama up → Injects delegation instructions into Claude's context
-                    based on your configured level
-    │
-    ▼
-During the session, Claude encounters a task
-    │
-    ▼
-5-Layer Classification Engine decides routing:
-    │
-    ├─ Layer 1: Static Patterns — 24 regex rules (0 tokens, instant)
-    ├─ Layer 2: Signal Heuristics — 12 complexity signals (0 tokens)
-    ├─ Layer 3: Local Model Triage — small LLM classifies ambiguous tasks (~200 tokens)
-    ├─ Layer 4: Try-Local-First — attempt local, escalate on failure (Level 3+)
-    └─ Layer 5: Historical Learning — per-task success rates after 50+ records
-    │
-    ▼
-Task runs on Ollama or cloud API
-    │
-    ▼
-SubagentStop hook logs metrics to ~/.claude-saver/metrics.jsonl
+/claudesaver:dashboard
 ```
 
-Key design choices:
-- **Fail-open** — If Ollama is down or a hook errors, Claude works exactly as before. Nothing breaks.
-- **Zero file content to cloud** — The `claudesaver_fs` tools return metadata only (tree, stat, line counts). File contents never leave your machine through the MCP server.
-- **Classification costs almost nothing** — Layers 1-2 use zero tokens. Layer 3 uses ~200 local tokens. Most tasks are classified by Layer 1 or 2.
+This opens `http://127.0.0.1:37888` in your browser with:
 
-## MCP Tools (9 tools)
+- **Net savings** — real savings after subtracting wrapper overhead
+- **Efficiency score** — what percentage of local tokens are actual savings vs overhead
+- **Savings over time** — line chart tracking local tokens and overhead per day
+- **Token split** — donut chart showing net savings vs overhead
+- **Tool usage** — which MCP tools you use most
+- **Recent delegations** — per-call breakdown with model, tokens, overhead, and net impact
+
+The dashboard auto-refreshes every 10 seconds and runs entirely on your machine.
+
+---
+
+## Commands
+
+| Command | Description |
+|---|---|
+| `/claudesaver:settings` | Full settings dashboard — change level, model, metrics, view stats |
+| `/claudesaver:dashboard` | Open the web dashboard in your browser |
+| `/claudesaver:ask` | Run a prompt entirely on the local model — no exceptions |
+| `/claudesaver:local` | Toggle Local Model Mode (switch to Level 5 and back) |
+| `/claudesaver:status` | Quick Ollama health and savings check |
+| `/claudesaver:level` | Get or set delegation level |
+| `/claudesaver:config` | Edit configuration interactively |
+| `/claudesaver:setup-statusline` | Add delegation level to your terminal status bar |
+| `/claudesaver:benchmark` | Compare local vs cloud output for a task |
+
+---
+
+## MCP Tools
 
 ### Tier 0: Filesystem (zero tokens, no LLM)
 
@@ -145,36 +180,54 @@ Key design choices:
 | `claudesaver_analyze_file` | Summarize, find bugs, explain, or suggest refactors for a file |
 | `claudesaver_batch` | Run up to 100 prompts in parallel (configurable concurrency) |
 
-### Management (zero tokens)
+### Management
 
 | Tool | What it does |
 |---|---|
+| `claudesaver_config` | Read, update, or reset plugin settings (dot-notation paths) |
 | `claudesaver_models` | List available Ollama models, check health |
 | `claudesaver_level` | Get, set, or describe delegation levels (0-5) |
-| `claudesaver_metrics` | View cumulative savings, reset history |
+| `claudesaver_metrics` | View savings metrics (with honest overhead tracking), reset history |
 
-## Slash Commands
+---
 
-| Command | Description |
-|---|---|
-| `/claudesaver:settings` | Integrated dashboard — view status, change level, switch models, toggle metrics, reset savings |
-| `/claudesaver:local` | Toggle Local Model Mode — switch between your current level and Level 5 (all tasks local) |
-| `/claudesaver:status` | Quick Ollama health and savings check |
-| `/claudesaver:level` | Get or set delegation level (`/claudesaver:level 3`) |
-| `/claudesaver:config` | Edit configuration interactively |
-| `/claudesaver:setup-statusline` | Add delegation level and model to your terminal status bar |
-| `/claudesaver:benchmark` | Compare local vs cloud output for a task |
+## Privacy
+
+Claude-Saver keeps your code on your machine:
+
+- **`claudesaver_fs`** returns only metadata — file names, sizes, line counts, git status. Never file contents.
+- **`claudesaver_fs_preview`** extracts structure (function names, imports, exports) without sending raw source.
+- **`claudesaver_analyze_file`** reads the file locally and processes it with your local Ollama model. The file never leaves your machine.
+- **`claudesaver_complete`** and **`claudesaver_generate_code`** communicate only with your local Ollama instance.
+- **Metrics** are stored locally in `~/.claude-saver/metrics.jsonl`. No telemetry, no phone-home, no external reporting.
+- **The dashboard** runs on `127.0.0.1` only — not accessible from outside your machine.
+
+---
 
 ## Configuration
 
-Settings live in `~/.claude-saver/config.json`. The plugin creates this directory automatically. All fields have sensible defaults — you only need to configure what you want to change.
+Settings live in `~/.claude-saver/config.json`. The plugin creates this directory automatically. All fields have sensible defaults.
+
+You can edit config via the MCP tool:
+```
+claudesaver_config set ollama.default_model "qwen3:8b"
+claudesaver_config get delegation_level
+claudesaver_config reset
+```
+
+Or via the interactive command:
+```
+/claudesaver:settings
+```
+
+### Full Config Reference
 
 ```json
 {
   "delegation_level": 2,
   "ollama": {
     "base_url": "http://localhost:11434",
-    "default_model": "qwen3:8b",
+    "default_model": "slekrem/gpt-oss-claude-code-32k:latest",
     "fallback_model": null,
     "timeout_ms": 120000,
     "health_timeout_ms": 3000
@@ -198,117 +251,124 @@ Settings live in `~/.claude-saver/config.json`. The plugin creates this director
 }
 ```
 
-**`delegation_level`** — Controls routing aggressiveness (0-5). Start at 2, bump to 3 once you trust your model.
+| Field | Description |
+|---|---|
+| `delegation_level` | Routing aggressiveness (0-5). Start at 2, bump to 3 once you trust your model. |
+| `ollama.default_model` | Which model handles delegated tasks. |
+| `ollama.fallback_model` | Backup model if primary fails (OOM, not loaded). Set to a smaller model or `null`. |
+| `ollama.timeout_ms` | Max wait for Ollama responses. Increase for large models on CPU. |
+| `routing.use_local_triage` | Classify ambiguous tasks with your local model (~200 local tokens). Recommended on. |
+| `routing.use_historical_learning` | Adjust routing based on past success rates. Needs `learner_min_records` entries first. |
+| `metrics.enabled` | Set `false` to stop logging. Existing metrics remain readable. |
+| `welcome.cost_per_million_tokens` | Used to estimate dollar savings. Default $8/M (approximate Claude output cost). |
 
-**`ollama.default_model`** — Which model handles delegated tasks. Thinking models like `qwen3:8b` or `devstral:24b` work well.
+---
 
-**`ollama.fallback_model`** — Backup model used when the primary fails (e.g., model not loaded, OOM). Set to a smaller model like `qwen3:1.7b` for resilience, or leave `null` to disable.
+## How It Works
 
-**`ollama.timeout_ms`** — How long to wait for Ollama responses. Increase if you're running large models on CPU.
+```
+Session Start
+    |
+    v
+SessionStart hook checks Ollama health
+    |
+    +-- Ollama down? -> Plugin stays silent, Claude works normally
+    |
+    +-- Ollama up -> Injects delegation instructions + warms up model
+    |
+    v
+During the session, Claude encounters a task
+    |
+    v
+5-Layer Classification Engine decides routing:
+    |
+    +-- Layer 1: Static Patterns (24 regex rules, 0 tokens, instant)
+    +-- Layer 2: Signal Heuristics (12 complexity signals, 0 tokens)
+    +-- Layer 3: Local Model Triage (small LLM classifies, ~200 local tokens)
+    +-- Layer 4: Try-Local-First (attempt local, escalate on failure)
+    +-- Layer 5: Historical Learning (per-task success rates)
+    |
+    v
+Task runs on Ollama or cloud API
+    |
+    v
+Metrics logged with honest overhead tracking
+```
 
-**`routing.use_local_triage`** — When true, ambiguous tasks (not caught by patterns or heuristics) get classified by your local model before routing. Costs ~200 local tokens per ambiguous task. Recommended.
+**Layers 1-2 catch most tasks with zero token cost.** Pattern matching and heuristics handle clear-cut cases instantly. Only ambiguous tasks fall through to Layer 3 for local model triage.
 
-**`routing.use_historical_learning`** — When true, the learner adjusts routing confidence based on past success rates per task type. Requires `learner_min_records` history entries before activating.
-
-**`routing.learner_min_records`** — How many history records the learner needs before it starts adjusting routing decisions. Default 50. Lower to 20-30 if you want faster adaptation.
-
-**`metrics.enabled`** — Set `false` to stop writing completion metrics to disk. Metrics are still readable (for existing data) but no new entries are logged.
-
-**`metrics.log_path`** — Where metrics JSONL is stored. Supports `~` for home directory. Change this to keep metrics in a project-specific location.
-
-**`welcome.cost_per_million_tokens`** — Used to estimate dollar savings in the status display. Defaults to $8/M (approximate Claude output token cost).
+---
 
 ## Troubleshooting
 
-**"[Claude-Saver] Ollama not available" on session start**
-Ollama isn't running or isn't reachable at the configured URL. Check:
+**"Ollama not available" on session start**
 ```bash
-curl http://localhost:11434/api/tags    # Should return JSON with models list
-ollama serve                            # Start Ollama if not running
+ollama serve                            # Start Ollama
+curl http://localhost:11434/api/tags    # Should return JSON with models
 ```
 
-**Plugin installed but Claude isn't delegating anything**
-- Check your delegation level: `/claudesaver:level` — Level 0 means manual only
-- Verify Ollama has models: `ollama list`
-- Check the session start message — if you don't see `[Claude-Saver]`, the hook isn't running
+**Claude isn't delegating anything**
+- Check your level: `/claudesaver:level` — Level 0 means manual only
+- Verify models: `ollama list`
+- Short tasks (<200 token output) are answered directly by design — the overhead isn't worth it
 
 **Local model output is poor quality**
-- Try a larger model: `devstral:24b` or `qwen3:14b` produce better code than smaller variants
-- Lower your delegation level to 1 or 2 so only trivial tasks go local
-- The classification engine is designed to escalate to cloud when local quality is insufficient (Level 3+ with try-local-first)
+- Try a larger model: `devstral:24b` or `slekrem/gpt-oss-claude-code-32k` produce better results
+- Lower your level to 1 or 2 so only trivial tasks go local
+- Level 3+ uses try-local-first with automatic escalation on poor quality
 
 **Ollama is slow**
-- GPU acceleration: ensure Ollama is using your GPU (`ollama ps` shows VRAM usage)
-- Reduce `ollama.timeout_ms` if you'd rather fail fast than wait
-- Use smaller models for routine tasks — `qwen3:8b` is fast even on modest GPUs
+- Check GPU: `ollama ps` shows VRAM usage — CPU inference is much slower
+- Use smaller models for routine tasks
+- Increase `ollama.timeout_ms` or switch to a lighter model
 
-**How do I see what was delegated?**
-```
-/claudesaver:status
-```
-Or use the MCP tool directly:
-```
-claudesaver_metrics summary
-```
-This shows total tasks, local task count, tokens used locally, and estimated savings.
+**Dashboard won't start**
+- Port 37888 may be in use. Set `CLAUDE_SAVER_DASHBOARD_PORT=37889` and try again
+- The dashboard only binds to `127.0.0.1` — it's not accessible externally
 
-## Related Projects
-
-Claude-Saver is part of a growing ecosystem of Claude Code plugins:
-
-- **[superpowers](https://github.com/obra/superpowers)** — Agentic workflow skills (brainstorming, TDD, code review, git worktrees). Complements Claude-Saver well: superpowers adds workflow structure, Claude-Saver reduces the token cost of executing those workflows.
-- **[claude-mem](https://github.com/thedotmack/claude-mem)** — Persistent memory across Claude Code sessions via lifecycle hooks and MCP tools. Similar hook-based architecture to Claude-Saver.
-- **[Claude Plugins Official Directory](https://github.com/anthropics/claude-plugins-official)** — Anthropic's curated plugin marketplace.
+---
 
 ## Development
 
 ```bash
 npm install
-npm run build       # esbuild: TypeScript → CJS bundles in scripts/
+npm run build       # esbuild: TypeScript -> CJS bundles in scripts/
 npm run dev         # Watch mode
-npm test            # 508 tests (unit + integration + E2E)
+npm test            # 500+ tests (unit + integration + E2E)
 npm run typecheck   # tsc --noEmit
 ```
 
 ### Test Suite
 
-| Category | Tests | What's covered |
+| Category | Tests | Coverage |
 |---|---|---|
-| Unit tests | 445 | Classification engine, config, metrics, fs tools, security |
+| Unit tests | 400+ | Classification engine, config, metrics, fs tools, security |
 | Integration | 89 | Full routing pipeline with 50+ realistic prompts |
-| E2E (subprocess) | 57 | Compiled bundles as real subprocesses: hooks, MCP JSON-RPC, manifest validation, cross-component metrics |
+| E2E (subprocess) | 57 | Compiled bundles as real subprocesses: hooks, MCP JSON-RPC, manifests, cross-component metrics |
 
-The E2E suite spawns the actual `.cjs` bundles the way Claude Code does — testing stdio transport, hook exit codes, config persistence round-trips, and metrics flow between hooks and MCP server. Ollama-dependent tests (9) auto-skip when Ollama isn't available.
+The E2E suite spawns the actual `.cjs` bundles the way Claude Code does — testing stdio transport, hook exit codes, config persistence round-trips, and metrics flow. Ollama-dependent tests auto-skip when Ollama isn't available.
 
 ### Project Structure
 
 ```
-.claude-plugin/           Plugin manifest (plugin.json, marketplace.json)
+.claude-plugin/           Plugin manifest
 .mcp.json                 MCP server configuration
-agents/                   local-worker subagent definition
-commands/                 Slash command definitions
-config/                   Default configuration
+agents/                   local-worker subagent
+commands/                 Slash commands (9 commands)
+config/                   Default routing rules
 hooks/                    hooks.json (SessionStart + SubagentStop)
 scripts/
   build.js                esbuild bundler
-  mcp-server.cjs          Compiled MCP server
-  session-start-hook.cjs  Compiled SessionStart hook
-  subagent-stop-hook.cjs  Compiled SubagentStop hook
+  mcp-server.cjs          Compiled MCP server (10 tools)
+  session-start-hook.cjs  SessionStart hook (health + welcome + model warm-up)
+  subagent-stop-hook.cjs  SubagentStop hook (metrics logging)
+  dashboard-server.cjs    Dashboard web server
+  dashboard.html          Dashboard UI
 skills/                   Smart delegation skill
 src/
+  dashboard/              Dashboard server + HTML source
   hooks/                  Hook TypeScript source
   mcp-server/             MCP server + 5-layer classification engine
-    index.ts              Server entry point (9 tools)
-    router.ts             Task classification pipeline
-    patterns.ts           Layer 1: static pattern matching
-    signals.ts            Layer 2: signal heuristics
-    triage.ts             Layer 3: local model triage
-    escalation.ts         Layer 4: try-local-first
-    learner.ts            Layer 5: historical learning
-    config.ts             Config loading and persistence
-    metrics.ts            JSONL metrics logging
-    health.ts             Ollama health checks and chat
-    fs-tools.ts           Filesystem operations
 tests/
   integration/            Routing E2E + plugin subprocess E2E
   *.test.ts               Unit tests per module
@@ -316,15 +376,13 @@ tests/
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ```bash
-# Fork, clone, branch
 git checkout -b feature/your-feature
 npm install && npm run build
 npm test                    # All tests must pass
 npm run typecheck           # No type errors
-# Submit PR
 ```
 
 ## License
