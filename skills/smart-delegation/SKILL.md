@@ -1,6 +1,6 @@
 ---
 name: smart-delegation
-description: "Intelligently delegate coding tasks to local Ollama models when they don't need cloud-tier intelligence. Saves 40-80% on API tokens."
+description: "Intelligently delegate coding tasks to local Ollama models when they don't need cloud-tier intelligence. Reduces API token usage."
 when_to_use: "When a coding task is routine, repetitive, or doesn't require deep reasoning — docstrings, commit messages, boilerplate, format conversions, simple code generation, test scaffolding, file structure queries."
 version: "0.1.0"
 ---

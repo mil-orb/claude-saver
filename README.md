@@ -1,6 +1,6 @@
 # Claude-Saver
 
-**Save 60-80% on Claude API tokens by intelligently routing tasks to local Ollama models.**
+**Save on Claude API tokens by intelligently routing tasks to local Ollama models.**
 
 Claude-Saver is a Claude Code plugin that adds a local model delegation layer. Routine coding tasks (docstrings, commit messages, boilerplate, format conversions) run on your local GPU via Ollama, while complex work stays on the cloud API. Claude decides what to delegate based on a 5-layer classification engine — no manual intervention needed.
 
@@ -54,9 +54,9 @@ On every session start, Claude-Saver checks if Ollama is running and injects del
 |---|---|---|
 | 0 | Off | Manual delegation only |
 | 1 | Conservative | Only trivial tasks (docstrings, commit messages) |
-| 2 | **Balanced** | Routine coding tasks (~40-60% savings) |
-| 3 | Aggressive | Most tasks go local (~60-80% savings) |
-| 4 | Max Local | Try everything locally first (~80-95% savings) |
+| 2 | **Balanced** | Routine coding tasks |
+| 3 | Aggressive | Most tasks go local |
+| 4 | Max Local | Try everything locally first |
 | 5 | Offline | All tasks local, no cloud processing |
 
 Change the level:

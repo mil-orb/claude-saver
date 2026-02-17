@@ -1,7 +1,7 @@
 {
   "name": "claude-saver",
   "version": "0.1.0",
-  "description": "Claude Code plugin that intelligently routes tasks between cloud API and local Ollama models to save 60-80% on tokens",
+  "description": "Claude Code plugin that intelligently routes tasks between cloud API and local Ollama models to reduce token usage",
   "type": "module",
   "scripts": {
     "build": "node scripts/build.js",

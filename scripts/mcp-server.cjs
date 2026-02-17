@@ -22490,10 +22490,10 @@ var LEVEL_NAMES = {
 var LEVEL_DESCRIPTIONS = {
   0: "Nothing auto-routed. Manual delegation only via MCP tools.",
   1: "Only trivial tasks (Level \u22642) go local. Immediate escalation on any issue.",
-  2: "Simple-to-moderate tasks (Level \u22643) go local. Standard escalation. ~40-60% savings.",
-  3: "Most tasks (Level \u22644) go local. Tolerant escalation. ~60-80% savings.",
-  4: "All tasks attempted locally first. Minimal escalation. ~80-95% savings.",
-  5: "Offline mode. All tasks local, no cloud fallback. ~95-100% savings."
+  2: "Simple-to-moderate tasks (Level \u22643) go local. Standard escalation.",
+  3: "Most tasks (Level \u22644) go local. Tolerant escalation.",
+  4: "All tasks attempted locally first. Minimal escalation.",
+  5: "Offline mode. All tasks local, no cloud fallback."
 };
 server.tool(
   "claudesaver_level",

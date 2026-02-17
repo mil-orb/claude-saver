@@ -15,8 +15,8 @@ If no argument, use `claudesaver_level` with action "get" to show current level.
 
 **Levels:**
 - 0: Off — nothing auto-routed
-- 1: Conservative — only trivial tasks, ~20-30% savings
-- 2: Balanced (default) — simple-to-moderate tasks, ~40-60% savings
-- 3: Aggressive — most tasks go local, ~60-80% savings
-- 4: Max Local — all tasks attempted locally, ~80-95% savings
+- 1: Conservative — only trivial tasks
+- 2: Balanced (default) — simple-to-moderate tasks
+- 3: Aggressive — most tasks go local
+- 4: Max Local — all tasks attempted locally
 - 5: Offline — everything local, no cloud fallback
