@@ -20935,6 +20935,41 @@ function deepMerge(target, source) {
 }
 
 // src/mcp-server/health.ts
+var resolvedModel = null;
+async function resolveModel(baseUrl) {
+  if (resolvedModel) return resolvedModel;
+  const config2 = loadConfig();
+  const url = baseUrl ?? config2.ollama.base_url;
+  const timeout = config2.ollama.health_timeout_ms;
+  const configured = config2.ollama.default_model;
+  try {
+    const response = await fetchWithTimeout(`${url}/api/tags`, timeout);
+    if (!response.ok) {
+      resolvedModel = configured;
+      return configured;
+    }
+    const data = await response.json();
+    const models = data.models ?? [];
+    if (models.length === 0) {
+      resolvedModel = configured;
+      return configured;
+    }
+    const configuredBase = configured.replace(/:latest$/, "");
+    const found = models.find(
+      (m) => m.name === configured || m.name.replace(/:latest$/, "") === configuredBase
+    );
+    if (found) {
+      resolvedModel = found.name;
+      return resolvedModel;
+    }
+    const sorted = [...models].sort((a, b) => b.size - a.size);
+    resolvedModel = sorted[0].name;
+    return resolvedModel;
+  } catch {
+    resolvedModel = configured;
+    return configured;
+  }
+}
 async function fetchWithTimeout(url, timeoutMs, options) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -20966,7 +21001,7 @@ async function checkHealth(baseUrl, timeoutMs) {
 }
 async function ollamaChat(prompt, options) {
   const config2 = loadConfig();
-  const model = options?.model ?? config2.ollama.default_model;
+  const model = options?.model ?? await resolveModel();
   const fallbackModel = config2.ollama.fallback_model;
   try {
     return await ollamaChatOnce(prompt, model, options);

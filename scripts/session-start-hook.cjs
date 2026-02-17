@@ -101,13 +101,28 @@ async function checkHealth(baseUrl, timeoutMs) {
       return { healthy: false, models: [], url: baseUrl, error: `HTTP ${response.status}`, latency_ms: latency };
     }
     const data = await response.json();
-    const models = (data.models ?? []).map((m) => m.name);
-    return { healthy: true, models, url: baseUrl, latency_ms: latency };
+    const modelDetails = data.models ?? [];
+    const models = modelDetails.map((m) => m.name);
+    return { healthy: true, models, url: baseUrl, latency_ms: latency, modelDetails };
   } catch (err) {
     clearTimeout(timer);
     const msg = err instanceof Error ? err.message : String(err);
     return { healthy: false, models: [], url: baseUrl, error: msg };
   }
+}
+function resolveModel(configured, modelDetails) {
+  if (modelDetails.length === 0) {
+    return { model: configured, autoDetected: false };
+  }
+  const configuredBase = configured.replace(/:latest$/, "");
+  const found = modelDetails.find(
+    (m) => m.name === configured || m.name.replace(/:latest$/, "") === configuredBase
+  );
+  if (found) {
+    return { model: found.name, autoDetected: false };
+  }
+  const sorted = [...modelDetails].sort((a, b) => b.size - a.size);
+  return { model: sorted[0].name, autoDetected: true };
 }
 var LEVEL_NAMES = {
   0: "Off",
@@ -193,7 +208,8 @@ async function main() {
     console.error(`[Claude-Saver] Ollama not available: ${health.error}`);
     process.exit(0);
   }
-  warmUpModel(config.ollama.base_url, config.ollama.default_model);
+  const { model: activeModel, autoDetected } = resolveModel(config.ollama.default_model, health.modelDetails ?? []);
+  warmUpModel(config.ollama.base_url, activeModel);
   const lines = [];
   const levelName = LEVEL_NAMES[config.delegation_level] ?? "Unknown";
   if (config.welcome.show_level) {
@@ -214,7 +230,8 @@ async function main() {
   if (config.welcome.show_models) {
     const modelList = health.models.slice(0, 5).join(", ");
     const moreCount = health.models.length > 5 ? ` (+${health.models.length - 5} more)` : "";
-    lines.push(`Models: ${modelList}${moreCount} | Default: ${config.ollama.default_model}`);
+    const modelLabel = autoDetected ? `Auto-detected: ${activeModel}` : `Default: ${activeModel}`;
+    lines.push(`Models: ${modelList}${moreCount} | ${modelLabel}`);
   }
   const instructions = getDelegationInstructions(config.delegation_level);
   if (instructions) {

@@ -14,6 +14,65 @@ export interface OllamaModel {
   modified_at: string;
 }
 
+// Cache resolved model for the lifetime of the process
+let resolvedModel: string | null = null;
+
+/**
+ * Auto-detect the best available model from Ollama.
+ * If the configured default_model is installed, use it.
+ * Otherwise, pick the largest available model (by file size).
+ * Caches the result so /api/tags is only called once.
+ */
+export async function resolveModel(baseUrl?: string): Promise<string> {
+  if (resolvedModel) return resolvedModel;
+
+  const config = loadConfig();
+  const url = baseUrl ?? config.ollama.base_url;
+  const timeout = config.ollama.health_timeout_ms;
+  const configured = config.ollama.default_model;
+
+  try {
+    const response = await fetchWithTimeout(`${url}/api/tags`, timeout);
+    if (!response.ok) {
+      resolvedModel = configured;
+      return configured;
+    }
+
+    const data = await response.json() as { models?: OllamaModel[] };
+    const models = data.models ?? [];
+
+    if (models.length === 0) {
+      resolvedModel = configured;
+      return configured;
+    }
+
+    // Check if the configured model is available (match with or without :latest tag)
+    const configuredBase = configured.replace(/:latest$/, '');
+    const found = models.find(m =>
+      m.name === configured || m.name.replace(/:latest$/, '') === configuredBase
+    );
+    if (found) {
+      resolvedModel = found.name;
+      return resolvedModel;
+    }
+
+    // Configured model not available — pick the largest installed model
+    const sorted = [...models].sort((a, b) => b.size - a.size);
+    resolvedModel = sorted[0].name;
+    return resolvedModel;
+  } catch {
+    resolvedModel = configured;
+    return configured;
+  }
+}
+
+/**
+ * Clear the cached resolved model (useful for testing or after model changes).
+ */
+export function clearModelCache(): void {
+  resolvedModel = null;
+}
+
 async function fetchWithTimeout(url: string, timeoutMs: number, options?: RequestInit): Promise<Response> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -71,7 +130,8 @@ export async function ollamaChat(
   }
 ): Promise<OllamaChatResult> {
   const config = loadConfig();
-  const model = options?.model ?? config.ollama.default_model;
+  // Auto-detect model if none explicitly specified
+  const model = options?.model ?? await resolveModel();
   const fallbackModel = config.ollama.fallback_model;
 
   try {

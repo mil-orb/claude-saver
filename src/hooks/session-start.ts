@@ -110,7 +110,12 @@ function loadSavings(costPerMillionTokens: number): SavingsInfo {
   }
 }
 
-async function checkHealth(baseUrl: string, timeoutMs: number): Promise<HealthResult> {
+interface OllamaModelInfo {
+  name: string;
+  size: number;
+}
+
+async function checkHealth(baseUrl: string, timeoutMs: number): Promise<HealthResult & { modelDetails?: OllamaModelInfo[] }> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   const start = Date.now();
@@ -124,14 +129,37 @@ async function checkHealth(baseUrl: string, timeoutMs: number): Promise<HealthRe
       return { healthy: false, models: [], url: baseUrl, error: `HTTP ${response.status}`, latency_ms: latency };
     }
 
-    const data = await response.json() as { models?: Array<{ name: string }> };
-    const models = (data.models ?? []).map(m => m.name);
-    return { healthy: true, models, url: baseUrl, latency_ms: latency };
+    const data = await response.json() as { models?: OllamaModelInfo[] };
+    const modelDetails = data.models ?? [];
+    const models = modelDetails.map(m => m.name);
+    return { healthy: true, models, url: baseUrl, latency_ms: latency, modelDetails };
   } catch (err) {
     clearTimeout(timer);
     const msg = err instanceof Error ? err.message : String(err);
     return { healthy: false, models: [], url: baseUrl, error: msg };
   }
+}
+
+/**
+ * Auto-detect the best available model.
+ * If configured default_model is installed, use it. Otherwise pick the largest model.
+ */
+function resolveModel(configured: string, modelDetails: OllamaModelInfo[]): { model: string; autoDetected: boolean } {
+  if (modelDetails.length === 0) {
+    return { model: configured, autoDetected: false };
+  }
+
+  const configuredBase = configured.replace(/:latest$/, '');
+  const found = modelDetails.find(m =>
+    m.name === configured || m.name.replace(/:latest$/, '') === configuredBase
+  );
+  if (found) {
+    return { model: found.name, autoDetected: false };
+  }
+
+  // Pick the largest installed model
+  const sorted = [...modelDetails].sort((a, b) => b.size - a.size);
+  return { model: sorted[0].name, autoDetected: true };
 }
 
 const LEVEL_NAMES: Record<number, string> = {
@@ -251,9 +279,12 @@ async function main(): Promise<void> {
     process.exit(0);
   }
 
-  // Warm up the default model immediately after health check passes.
+  // Auto-detect the best available model
+  const { model: activeModel, autoDetected } = resolveModel(config.ollama.default_model, health.modelDetails ?? []);
+
+  // Warm up the resolved model immediately after health check passes.
   // This loads it into VRAM so the first claudesaver_complete call is fast.
-  warmUpModel(config.ollama.base_url, config.ollama.default_model);
+  warmUpModel(config.ollama.base_url, activeModel);
 
   const lines: string[] = [];
 
@@ -281,7 +312,8 @@ async function main(): Promise<void> {
   if (config.welcome.show_models) {
     const modelList = health.models.slice(0, 5).join(', ');
     const moreCount = health.models.length > 5 ? ` (+${health.models.length - 5} more)` : '';
-    lines.push(`Models: ${modelList}${moreCount} | Default: ${config.ollama.default_model}`);
+    const modelLabel = autoDetected ? `Auto-detected: ${activeModel}` : `Default: ${activeModel}`;
+    lines.push(`Models: ${modelList}${moreCount} | ${modelLabel}`);
   }
 
   // Delegation instructions — the behavioral trigger
