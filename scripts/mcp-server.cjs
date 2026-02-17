@@ -20867,7 +20867,8 @@ var DEFAULT_CONFIG = {
     use_local_triage: true,
     use_historical_learning: false,
     enable_decomposition: false,
-    triage_model: null
+    triage_model: null,
+    learner_min_records: 50
   },
   specialist_models: {},
   metrics: {
@@ -20886,6 +20887,12 @@ function getConfigDir() {
 }
 function getConfigPath() {
   return path.join(getConfigDir(), "config.json");
+}
+function resolvePath(p) {
+  if (p.startsWith("~")) {
+    return path.join(os.homedir(), p.slice(1));
+  }
+  return p;
 }
 function ensureConfigDir() {
   const dir = getConfigDir();
@@ -20960,6 +20967,21 @@ async function checkHealth(baseUrl, timeoutMs) {
 async function ollamaChat(prompt, options) {
   const config2 = loadConfig();
   const model = options?.model ?? config2.ollama.default_model;
+  const fallbackModel = config2.ollama.fallback_model;
+  try {
+    return await ollamaChatOnce(prompt, model, options);
+  } catch (primaryError) {
+    if (fallbackModel && !options?.model && fallbackModel !== model) {
+      try {
+        return await ollamaChatOnce(prompt, fallbackModel, options);
+      } catch {
+      }
+    }
+    throw primaryError;
+  }
+}
+async function ollamaChatOnce(prompt, model, options) {
+  const config2 = loadConfig();
   const baseUrl = options?.baseUrl ?? config2.ollama.base_url;
   const timeoutMs = options?.timeoutMs ?? config2.ollama.timeout_ms;
   const messages = [];
@@ -22055,9 +22077,10 @@ function getRecommendation(taskType, proposedLevel) {
   if (!config2.routing.use_historical_learning) {
     return { confidence_adjustment: 0, reason: "Historical learning disabled", sample_size: 0 };
   }
+  const minRecords = config2.routing.learner_min_records;
   const history = loadHistory();
-  if (history.length < 50) {
-    return { confidence_adjustment: 0, reason: `Insufficient data (${history.length}/50 records)`, sample_size: history.length };
+  if (history.length < minRecords) {
+    return { confidence_adjustment: 0, reason: `Insufficient data (${history.length}/${minRecords} records)`, sample_size: history.length };
   }
   const relevant = history.filter((r) => r.task_type === taskType);
   if (relevant.length < 10) {
@@ -22227,9 +22250,9 @@ async function classifyTask(taskDescription, options) {
 // src/mcp-server/metrics.ts
 var fs4 = __toESM(require("fs"), 1);
 var path4 = __toESM(require("path"), 1);
-var os3 = __toESM(require("os"), 1);
 function getMetricsPath() {
-  return path4.join(os3.homedir(), ".claudesaver", "metrics.jsonl");
+  const config2 = loadConfig();
+  return resolvePath(config2.metrics.log_path);
 }
 function loadMetrics() {
   try {
@@ -22255,6 +22278,8 @@ function ensureDir(filePath) {
 }
 function logCompletion(entry) {
   try {
+    const config2 = loadConfig();
+    if (!config2.metrics.enabled) return;
     const metricsPath = getMetricsPath();
     ensureDir(metricsPath);
     const record2 = {
@@ -22271,8 +22296,9 @@ function logCompletion(entry) {
   }
 }
 function computeSummary(entries, costPerMillionTokens) {
+  const config2 = loadConfig();
   const metrics = entries ?? loadMetrics();
-  const costRate = costPerMillionTokens ?? 8;
+  const costRate = costPerMillionTokens ?? config2.welcome.cost_per_million_tokens;
   const sessions = new Set(metrics.map((m) => m.session_id));
   const toolsFreq = {};
   let totalDuration = 0;

@@ -84,9 +84,10 @@ export function getRecommendation(
     return { confidence_adjustment: 0, reason: 'Historical learning disabled', sample_size: 0 };
   }
 
+  const minRecords = config.routing.learner_min_records;
   const history = loadHistory();
-  if (history.length < 50) {
-    return { confidence_adjustment: 0, reason: `Insufficient data (${history.length}/50 records)`, sample_size: history.length };
+  if (history.length < minRecords) {
+    return { confidence_adjustment: 0, reason: `Insufficient data (${history.length}/${minRecords} records)`, sample_size: history.length };
   }
 
   // Filter to matching task type

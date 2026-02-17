@@ -16,6 +16,7 @@ export interface ClaudeSaverConfig {
     use_historical_learning: boolean;
     enable_decomposition: boolean;
     triage_model: string | null;
+    learner_min_records: number;
   };
   specialist_models: Record<string, string>;
   metrics: {
@@ -44,6 +45,7 @@ const DEFAULT_CONFIG: ClaudeSaverConfig = {
     use_historical_learning: false,
     enable_decomposition: false,
     triage_model: null,
+    learner_min_records: 50,
   },
   specialist_models: {},
   metrics: {

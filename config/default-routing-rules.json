@@ -11,7 +11,8 @@
     "use_local_triage": true,
     "use_historical_learning": false,
     "enable_decomposition": false,
-    "triage_model": null
+    "triage_model": null,
+    "learner_min_records": 50
   },
   "specialist_models": {},
   "metrics": {

@@ -72,6 +72,36 @@ export async function ollamaChat(
 ): Promise<OllamaChatResult> {
   const config = loadConfig();
   const model = options?.model ?? config.ollama.default_model;
+  const fallbackModel = config.ollama.fallback_model;
+
+  try {
+    return await ollamaChatOnce(prompt, model, options);
+  } catch (primaryError) {
+    // If a fallback model is configured and we didn't already specify one, retry
+    if (fallbackModel && !options?.model && fallbackModel !== model) {
+      try {
+        return await ollamaChatOnce(prompt, fallbackModel, options);
+      } catch {
+        // Fallback also failed — throw the primary error
+      }
+    }
+    throw primaryError;
+  }
+}
+
+async function ollamaChatOnce(
+  prompt: string,
+  model: string,
+  options?: {
+    system_prompt?: string;
+    temperature?: number;
+    max_tokens?: number;
+    baseUrl?: string;
+    timeoutMs?: number;
+    format?: 'json' | Record<string, unknown>;
+  }
+): Promise<OllamaChatResult> {
+  const config = loadConfig();
   const baseUrl = options?.baseUrl ?? config.ollama.base_url;
   const timeoutMs = options?.timeoutMs ?? config.ollama.timeout_ms;
 

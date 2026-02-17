@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import * as os from 'os';
+import { loadConfig, resolvePath } from './config.js';
 
 export interface MetricsEntry {
   type?: 'subagent' | 'completion';
@@ -35,7 +35,8 @@ export interface MetricsSummary {
 }
 
 function getMetricsPath(): string {
-  return path.join(os.homedir(), '.claudesaver', 'metrics.jsonl');
+  const config = loadConfig();
+  return resolvePath(config.metrics.log_path);
 }
 
 export function loadMetrics(): AnyMetricsEntry[] {
@@ -71,6 +72,9 @@ export function logCompletion(entry: {
   tool: string;
 }): void {
   try {
+    const config = loadConfig();
+    if (!config.metrics.enabled) return;
+
     const metricsPath = getMetricsPath();
     ensureDir(metricsPath);
     const record: CompletionEntry = {
@@ -89,8 +93,9 @@ export function logCompletion(entry: {
 }
 
 export function computeSummary(entries?: AnyMetricsEntry[], costPerMillionTokens?: number): MetricsSummary {
+  const config = loadConfig();
   const metrics = entries ?? loadMetrics();
-  const costRate = costPerMillionTokens ?? 8;
+  const costRate = costPerMillionTokens ?? config.welcome.cost_per_million_tokens;
   const sessions = new Set(metrics.map(m => m.session_id));
   const toolsFreq: Record<string, number> = {};
 
