@@ -4,9 +4,9 @@ disable-model-invocation: false
 
 # /claudesaver:config
 
-Configure ClaudeSaver settings interactively.
+Configure Claude-Saver settings interactively.
 
-Show the current configuration by reading `~/.claudesaver/config.json` (or defaults if it doesn't exist). Ask the user what they'd like to change:
+Show the current configuration by reading `~/.claude-saver/config.json` (or defaults if it doesn't exist). Ask the user what they'd like to change:
 
 1. **Delegation level** (0-5)
 2. **Ollama URL** (default: http://localhost:11434)

@@ -7,7 +7,7 @@ version: "0.1.0"
 
 # Smart Delegation
 
-You have access to ClaudeSaver tools that let you offload work to local Ollama models running on the user's machine. This saves API tokens for tasks that don't need cloud intelligence.
+You have access to Claude-Saver tools that let you offload work to local Ollama models running on the user's machine. This saves API tokens for tasks that don't need cloud intelligence.
 
 ## When to Delegate Locally
 

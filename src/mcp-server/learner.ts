@@ -20,7 +20,7 @@ export interface LearnerRecommendation {
 }
 
 function getHistoryPath(): string {
-  return path.join(os.homedir(), '.claudesaver', 'history.jsonl');
+  return path.join(os.homedir(), '.claude-saver', 'history.jsonl');
 }
 
 export function fingerprint(taskDescription: string): string {

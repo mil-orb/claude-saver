@@ -20873,7 +20873,7 @@ var DEFAULT_CONFIG = {
   specialist_models: {},
   metrics: {
     enabled: true,
-    log_path: "~/.claudesaver/metrics.jsonl"
+    log_path: "~/.claude-saver/metrics.jsonl"
   },
   welcome: {
     show_savings: true,
@@ -20883,7 +20883,7 @@ var DEFAULT_CONFIG = {
   }
 };
 function getConfigDir() {
-  return path.join(os.homedir(), ".claudesaver");
+  return path.join(os.homedir(), ".claude-saver");
 }
 function getConfigPath() {
   return path.join(getConfigDir(), "config.json");
@@ -22054,7 +22054,7 @@ var fs3 = __toESM(require("fs"), 1);
 var path3 = __toESM(require("path"), 1);
 var os2 = __toESM(require("os"), 1);
 function getHistoryPath() {
-  return path3.join(os2.homedir(), ".claudesaver", "history.jsonl");
+  return path3.join(os2.homedir(), ".claude-saver", "history.jsonl");
 }
 function loadHistory() {
   try {
@@ -22342,7 +22342,7 @@ function resetMetrics() {
 
 // src/mcp-server/index.ts
 var server = new McpServer({
-  name: "claudesaver",
+  name: "claude-saver",
   version: "0.1.0"
 });
 function ok(data) {
@@ -22696,6 +22696,6 @@ async function main() {
   await server.connect(transport);
 }
 main().catch((e) => {
-  console.error("ClaudeSaver MCP server failed to start:", e);
+  console.error("Claude-Saver MCP server failed to start:", e);
   process.exit(1);
 });

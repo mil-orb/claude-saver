@@ -19,8 +19,8 @@ vi.mock('os', async () => {
 import * as fs from 'fs';
 
 const homedir = os.homedir();
-const configPath = path.join(homedir, '.claudesaver', 'config.json');
-const metricsPath = path.join(homedir, '.claudesaver', 'metrics.jsonl');
+const configPath = path.join(homedir, '.claude-saver', 'config.json');
+const metricsPath = path.join(homedir, '.claude-saver', 'metrics.jsonl');
 
 beforeEach(() => {
   vi.resetAllMocks();
@@ -123,7 +123,7 @@ function loadConfig(): Config {
   };
 
   try {
-    const cfgPath = path.join(os.homedir(), '.claudesaver', 'config.json');
+    const cfgPath = path.join(os.homedir(), '.claude-saver', 'config.json');
     if (fs.existsSync(cfgPath)) {
       const raw = JSON.parse(fs.readFileSync(cfgPath, 'utf-8') as string);
       return {
@@ -140,7 +140,7 @@ function loadConfig(): Config {
 
 function loadSavings(costPerMillionTokens: number): SavingsInfo {
   try {
-    const mPath = path.join(os.homedir(), '.claudesaver', 'metrics.jsonl');
+    const mPath = path.join(os.homedir(), '.claude-saver', 'metrics.jsonl');
     if (!fs.existsSync(mPath)) return { total_local_tokens: 0, local_tasks: 0, estimated_cost_saved: 0 };
 
     const content = fs.readFileSync(mPath, 'utf-8') as string;
@@ -185,9 +185,9 @@ function assembleWelcomeMessage(config: Config, health: HealthResult): string {
 
   const levelName = LEVEL_NAMES[config.delegation_level] ?? 'Unknown';
   if (config.welcome.show_level) {
-    lines.push(`[ClaudeSaver] Ollama connected (${health.latency_ms}ms) — Level ${config.delegation_level} (${levelName})`);
+    lines.push(`[Claude-Saver] Ollama connected (${health.latency_ms}ms) — Level ${config.delegation_level} (${levelName})`);
   } else {
-    lines.push(`[ClaudeSaver] Ollama connected (${health.latency_ms}ms)`);
+    lines.push(`[Claude-Saver] Ollama connected (${health.latency_ms}ms)`);
   }
 
   if (config.welcome.show_savings) {
@@ -626,7 +626,7 @@ describe('assembleWelcomeMessage', () => {
 
     expect(msg).not.toContain('Level 3');
     expect(msg).not.toContain('Aggressive');
-    expect(msg).toContain('[ClaudeSaver] Ollama connected (42ms)');
+    expect(msg).toContain('[Claude-Saver] Ollama connected (42ms)');
   });
 
   it('shows "start delegating" message when show_savings is true but no tasks exist', () => {

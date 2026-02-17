@@ -1,4 +1,4 @@
-# Contributing to ClaudeSaver
+# Contributing to Claude-Saver
 
 Thanks for your interest in contributing!
 

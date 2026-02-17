@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to ClaudeSaver will be documented in this file.
+All notable changes to Claude-Saver will be documented in this file.
 
 ## [0.1.0] - Unreleased
 
@@ -12,4 +12,4 @@ All notable changes to ClaudeSaver will be documented in this file.
 - `smart-delegation` skill
 - Slash commands: `/claudesaver:status`, `/claudesaver:level`, `/claudesaver:config`, `/claudesaver:benchmark`
 - esbuild pipeline compiling TypeScript to standalone CJS bundles
-- Config system with `~/.claudesaver/config.json` and defaults
+- Config system with `~/.claude-saver/config.json` and defaults

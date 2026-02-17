@@ -42,7 +42,7 @@ function loadConfig() {
     }
   };
   try {
-    const configPath = path.join(os.homedir(), ".claudesaver", "config.json");
+    const configPath = path.join(os.homedir(), ".claude-saver", "config.json");
     if (fs.existsSync(configPath)) {
       const raw = JSON.parse(fs.readFileSync(configPath, "utf-8"));
       return {
@@ -57,7 +57,7 @@ function loadConfig() {
 }
 function loadSavings(costPerMillionTokens) {
   try {
-    const metricsPath = path.join(os.homedir(), ".claudesaver", "metrics.jsonl");
+    const metricsPath = path.join(os.homedir(), ".claude-saver", "metrics.jsonl");
     if (!fs.existsSync(metricsPath)) return { total_local_tokens: 0, local_tasks: 0, estimated_cost_saved: 0 };
     const content = fs.readFileSync(metricsPath, "utf-8");
     let totalTokens = 0;
@@ -155,19 +155,28 @@ function getDelegationInstructions(level) {
       return null;
   }
 }
+function warmUpModel(baseUrl, model) {
+  fetch(`${baseUrl}/api/generate`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ model, keep_alive: "10m" })
+  }).catch(() => {
+  });
+}
 async function main() {
   const config = loadConfig();
   const health = await checkHealth(config.ollama.base_url, config.ollama.health_timeout_ms);
   if (!health.healthy) {
-    console.error(`[ClaudeSaver] Ollama not available: ${health.error}`);
+    console.error(`[Claude-Saver] Ollama not available: ${health.error}`);
     process.exit(0);
   }
+  warmUpModel(config.ollama.base_url, config.ollama.default_model);
   const lines = [];
   const levelName = LEVEL_NAMES[config.delegation_level] ?? "Unknown";
   if (config.welcome.show_level) {
-    lines.push(`[ClaudeSaver] Ollama connected (${health.latency_ms}ms) \u2014 Level ${config.delegation_level} (${levelName})`);
+    lines.push(`[Claude-Saver] Ollama connected (${health.latency_ms}ms) \u2014 Level ${config.delegation_level} (${levelName})`);
   } else {
-    lines.push(`[ClaudeSaver] Ollama connected (${health.latency_ms}ms)`);
+    lines.push(`[Claude-Saver] Ollama connected (${health.latency_ms}ms)`);
   }
   if (config.welcome.show_savings) {
     const savings = loadSavings(config.welcome.cost_per_million_tokens);

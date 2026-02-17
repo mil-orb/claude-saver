@@ -18,7 +18,7 @@ ollama pull devstral:24b       # 14GB, stronger code generation
 /plugin install claude-saver
 
 # 3. Start a Claude Code session — you'll see:
-#    [ClaudeSaver] Ollama connected (42ms) — Level 2 (Balanced)
+#    [Claude-Saver] Ollama connected (42ms) — Level 2 (Balanced)
 #    Models: qwen3:8b, devstral:24b | Default: qwen3:8b
 #    Savings: No local completions yet — start delegating to save tokens!
 ```
@@ -119,7 +119,7 @@ During the session, Claude encounters a task
 Task runs on Ollama or cloud API
     │
     ▼
-SubagentStop hook logs metrics to ~/.claudesaver/metrics.jsonl
+SubagentStop hook logs metrics to ~/.claude-saver/metrics.jsonl
 ```
 
 Key design choices:
@@ -167,7 +167,7 @@ Key design choices:
 
 ## Configuration
 
-Settings live in `~/.claudesaver/config.json`. The plugin creates this directory automatically. All fields have sensible defaults — you only need to configure what you want to change.
+Settings live in `~/.claude-saver/config.json`. The plugin creates this directory automatically. All fields have sensible defaults — you only need to configure what you want to change.
 
 ```json
 {
@@ -187,7 +187,7 @@ Settings live in `~/.claudesaver/config.json`. The plugin creates this directory
   },
   "metrics": {
     "enabled": true,
-    "log_path": "~/.claudesaver/metrics.jsonl"
+    "log_path": "~/.claude-saver/metrics.jsonl"
   },
   "welcome": {
     "show_savings": true,
@@ -220,7 +220,7 @@ Settings live in `~/.claudesaver/config.json`. The plugin creates this directory
 
 ## Troubleshooting
 
-**"[ClaudeSaver] Ollama not available" on session start**
+**"[Claude-Saver] Ollama not available" on session start**
 Ollama isn't running or isn't reachable at the configured URL. Check:
 ```bash
 curl http://localhost:11434/api/tags    # Should return JSON with models list
@@ -230,7 +230,7 @@ ollama serve                            # Start Ollama if not running
 **Plugin installed but Claude isn't delegating anything**
 - Check your delegation level: `/claudesaver:level` — Level 0 means manual only
 - Verify Ollama has models: `ollama list`
-- Check the session start message — if you don't see `[ClaudeSaver]`, the hook isn't running
+- Check the session start message — if you don't see `[Claude-Saver]`, the hook isn't running
 
 **Local model output is poor quality**
 - Try a larger model: `devstral:24b` or `qwen3:14b` produce better code than smaller variants

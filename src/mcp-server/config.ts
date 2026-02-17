@@ -51,7 +51,7 @@ const DEFAULT_CONFIG: ClaudeSaverConfig = {
   specialist_models: {},
   metrics: {
     enabled: true,
-    log_path: '~/.claudesaver/metrics.jsonl',
+    log_path: '~/.claude-saver/metrics.jsonl',
   },
   welcome: {
     show_savings: true,
@@ -62,7 +62,7 @@ const DEFAULT_CONFIG: ClaudeSaverConfig = {
 };
 
 function getConfigDir(): string {
-  return path.join(os.homedir(), '.claudesaver');
+  return path.join(os.homedir(), '.claude-saver');
 }
 
 function getConfigPath(): string {

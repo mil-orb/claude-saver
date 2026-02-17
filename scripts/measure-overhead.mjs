@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Measures the token overhead that ClaudeSaver injects into every session.
+ * Measures the token overhead that Claude-Saver injects into every session.
  *
  * The SessionStart hook outputs additionalContext that becomes part of Claude's
  * system prompt. This context is re-sent on EVERY API turn for the rest of the
@@ -108,7 +108,7 @@ function getDelegationInstructions(level) {
 function assembleWelcomeMessage(level, models, latency, savings) {
   const lines = [];
   const levelName = LEVEL_NAMES[level] ?? 'Unknown';
-  lines.push(`[ClaudeSaver] Ollama connected (${latency}ms) — Level ${level} (${levelName})`);
+  lines.push(`[Claude-Saver] Ollama connected (${latency}ms) — Level ${level} (${levelName})`);
 
   if (savings.local_tasks > 0) {
     lines.push(`Savings: ${savings.total_local_tokens} tokens locally across ${savings.local_tasks} tasks — ~$${savings.estimated_cost_saved} saved`);
@@ -187,7 +187,7 @@ console.log('SECTION 3: Component Breakdown (Level 2 — default)');
 console.log('-'.repeat(80));
 console.log('');
 
-const headerLine = `[ClaudeSaver] Ollama connected (42ms) — Level 2 (Balanced)`;
+const headerLine = `[Claude-Saver] Ollama connected (42ms) — Level 2 (Balanced)`;
 const savingsLine = `Savings: No local completions yet — start delegating to save tokens!`;
 const modelsLine = `Models: qwen3:8b, devstral:24b, qwen3:1.7b | Default: qwen3:8b`;
 const instrLevel2 = getDelegationInstructions(2);
@@ -250,7 +250,7 @@ for (let level = 0; level <= 5; level++) {
 
 console.log('');
 console.log('');
-console.log('SECTION 6: Delegation Instructions as % of Total ClaudeSaver Overhead');
+console.log('SECTION 6: Delegation Instructions as % of Total Claude-Saver Overhead');
 console.log('-'.repeat(80));
 console.log('');
 

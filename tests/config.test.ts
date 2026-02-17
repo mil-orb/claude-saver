@@ -14,7 +14,7 @@ import * as fs from 'fs';
 import { loadConfig, saveConfig, ensureConfigDir, resolvePath } from '../src/mcp-server/config.js';
 
 const homedir = os.homedir();
-const configDir = path.join(homedir, '.claudesaver');
+const configDir = path.join(homedir, '.claude-saver');
 const configPath = path.join(configDir, 'config.json');
 
 beforeEach(() => {
@@ -39,7 +39,7 @@ describe('loadConfig', () => {
     expect(config.routing.triage_model).toBeNull();
     expect(config.specialist_models).toEqual({});
     expect(config.metrics.enabled).toBe(true);
-    expect(config.metrics.log_path).toBe('~/.claudesaver/metrics.jsonl');
+    expect(config.metrics.log_path).toBe('~/.claude-saver/metrics.jsonl');
     expect(config.welcome.show_savings).toBe(true);
     expect(config.welcome.show_models).toBe(true);
     expect(config.welcome.show_level).toBe(true);
@@ -137,8 +137,8 @@ describe('resolvePath', () => {
   });
 
   it('expands ~ with nested path', () => {
-    const result = resolvePath('~/.claudesaver/metrics.jsonl');
-    expect(result).toBe(path.join(homedir, '.claudesaver', 'metrics.jsonl'));
+    const result = resolvePath('~/.claude-saver/metrics.jsonl');
+    expect(result).toBe(path.join(homedir, '.claude-saver', 'metrics.jsonl'));
   });
 
   it('leaves absolute paths unchanged', () => {

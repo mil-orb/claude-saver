@@ -23,7 +23,7 @@ interface MetricsEntry {
 }
 
 function getMetricsPath(): string {
-  return path.join(os.homedir(), '.claudesaver', 'metrics.jsonl');
+  return path.join(os.homedir(), '.claude-saver', 'metrics.jsonl');
 }
 
 function ensureDir(filePath: string): void {

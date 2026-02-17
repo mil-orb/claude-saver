@@ -147,9 +147,9 @@ describe('Tool Registration', () => {
 // Server Configuration
 // ---------------------------------------------------------------------------
 describe('Server Configuration', () => {
-  it('server name is "claudesaver"', () => {
+  it('server name is "claude-saver"', () => {
     expect(serverConfig).not.toBeNull();
-    expect(serverConfig!.name).toBe('claudesaver');
+    expect(serverConfig!.name).toBe('claude-saver');
   });
 
   it('server version is "0.1.0"', () => {

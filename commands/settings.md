@@ -4,7 +4,7 @@ disable-model-invocation: false
 
 # /claudesaver:settings
 
-Unified ClaudeSaver dashboard. Shows current status and lets the user change settings interactively.
+Unified Claude-Saver dashboard. Shows current status and lets the user change settings interactively.
 
 ## Step 1: Gather current state
 
@@ -20,7 +20,7 @@ Call these MCP tools in parallel to build the dashboard:
 Format the results as a clear dashboard. Use this layout:
 
 ```
-ClaudeSaver Dashboard
+Claude-Saver Dashboard
 ─────────────────────
 Connection:  {healthy ? "Connected" : "Disconnected"} ({latency}ms) — {url}
 Level:       {level} ({name}) — {description}
@@ -63,13 +63,13 @@ Use `AskUserQuestion` with these options:
 After selection, call `claudesaver_level` with action `"set"` and the chosen level. Confirm the change.
 
 ### Option 2 — Change default model
-Call `claudesaver_models` with action `"list"` to get available models. Present them as options via `AskUserQuestion`. After selection, read `~/.claudesaver/config.json`, update `ollama.default_model`, and write it back. Confirm the change.
+Call `claudesaver_models` with action `"list"` to get available models. Present them as options via `AskUserQuestion`. After selection, read `~/.claude-saver/config.json`, update `ollama.default_model`, and write it back. Confirm the change.
 
 ### Option 3 — Set fallback model
 Same as option 2, but update `ollama.fallback_model`. Explain that this model is used when the primary model fails (e.g., model not loaded, OOM).
 
 ### Option 4 — Toggle metrics
-Read `~/.claudesaver/config.json`, flip `metrics.enabled`, write back. Confirm whether metrics are now enabled or disabled.
+Read `~/.claude-saver/config.json`, flip `metrics.enabled`, write back. Confirm whether metrics are now enabled or disabled.
 
 ### Option 5 — Reset savings
 Call `claudesaver_metrics` with action `"reset"`. Confirm the reset.

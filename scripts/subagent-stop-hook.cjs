@@ -27,7 +27,7 @@ var fs = __toESM(require("fs"), 1);
 var path = __toESM(require("path"), 1);
 var os = __toESM(require("os"), 1);
 function getMetricsPath() {
-  return path.join(os.homedir(), ".claudesaver", "metrics.jsonl");
+  return path.join(os.homedir(), ".claude-saver", "metrics.jsonl");
 }
 function ensureDir(filePath) {
   const dir = path.dirname(filePath);

@@ -9,7 +9,7 @@ import { classifyTask } from './router.js';
 import { computeSummary, resetMetrics, logCompletion } from './metrics.js';
 
 const server = new McpServer({
-  name: 'claudesaver',
+  name: 'claude-saver',
   version: '0.1.0',
 });
 
@@ -394,6 +394,6 @@ async function main() {
 }
 
 main().catch((e) => {
-  console.error('ClaudeSaver MCP server failed to start:', e);
+  console.error('Claude-Saver MCP server failed to start:', e);
   process.exit(1);
 });

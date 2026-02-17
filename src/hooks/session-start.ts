@@ -53,7 +53,7 @@ function loadConfig(): Config {
   };
 
   try {
-    const configPath = path.join(os.homedir(), '.claudesaver', 'config.json');
+    const configPath = path.join(os.homedir(), '.claude-saver', 'config.json');
     if (fs.existsSync(configPath)) {
       const raw = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
       return {
@@ -70,7 +70,7 @@ function loadConfig(): Config {
 
 function loadSavings(costPerMillionTokens: number): SavingsInfo {
   try {
-    const metricsPath = path.join(os.homedir(), '.claudesaver', 'metrics.jsonl');
+    const metricsPath = path.join(os.homedir(), '.claude-saver', 'metrics.jsonl');
     if (!fs.existsSync(metricsPath)) return { total_local_tokens: 0, local_tasks: 0, estimated_cost_saved: 0 };
 
     const content = fs.readFileSync(metricsPath, 'utf-8');
@@ -185,23 +185,44 @@ function getDelegationInstructions(level: number): string | null {
   }
 }
 
+/**
+ * Warm up the default model by sending a keep-alive request to Ollama.
+ * This loads the model into VRAM so the first real completion doesn't cold-start.
+ * Fire-and-forget — never blocks the hook or delays session start.
+ */
+function warmUpModel(baseUrl: string, model: string): void {
+  // Use the /api/generate endpoint with keep_alive to load the model
+  // without generating any tokens (empty prompt, num_predict: 0)
+  fetch(`${baseUrl}/api/generate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ model, keep_alive: '10m' }),
+  }).catch(() => {
+    // Fire-and-forget — model warm-up is best-effort
+  });
+}
+
 async function main(): Promise<void> {
   const config = loadConfig();
   const health = await checkHealth(config.ollama.base_url, config.ollama.health_timeout_ms);
 
   if (!health.healthy) {
-    console.error(`[ClaudeSaver] Ollama not available: ${health.error}`);
+    console.error(`[Claude-Saver] Ollama not available: ${health.error}`);
     process.exit(0);
   }
+
+  // Warm up the default model immediately after health check passes.
+  // This loads it into VRAM so the first claudesaver_complete call is fast.
+  warmUpModel(config.ollama.base_url, config.ollama.default_model);
 
   const lines: string[] = [];
 
   // Header with connection status
   const levelName = LEVEL_NAMES[config.delegation_level] ?? 'Unknown';
   if (config.welcome.show_level) {
-    lines.push(`[ClaudeSaver] Ollama connected (${health.latency_ms}ms) — Level ${config.delegation_level} (${levelName})`);
+    lines.push(`[Claude-Saver] Ollama connected (${health.latency_ms}ms) — Level ${config.delegation_level} (${levelName})`);
   } else {
-    lines.push(`[ClaudeSaver] Ollama connected (${health.latency_ms}ms)`);
+    lines.push(`[Claude-Saver] Ollama connected (${health.latency_ms}ms)`);
   }
 
   // Savings display

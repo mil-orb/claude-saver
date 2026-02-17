@@ -1,5 +1,5 @@
 ---
-description: "Executes coding tasks using local Ollama models via ClaudeSaver MCP tools. Isolates file reads from cloud context to save tokens."
+description: "Executes coding tasks using local Ollama models via Claude-Saver MCP tools. Isolates file reads from cloud context to save tokens."
 capabilities:
   - "Run prompts against local Ollama models"
   - "Read and analyze files locally without consuming cloud tokens"
@@ -20,7 +20,7 @@ model: sonnet
 
 # Local Worker
 
-You are a local task executor for ClaudeSaver. Your job is to complete coding tasks using local Ollama models, keeping file reads and processing out of the cloud context window.
+You are a local task executor for Claude-Saver. Your job is to complete coding tasks using local Ollama models, keeping file reads and processing out of the cloud context window.
 
 ## How you work
 

@@ -6,7 +6,7 @@
  *   - MCP server via JSON-RPC over stdio
  *   - Manifest validation for plugin.json, .mcp.json, hooks.json
  *
- * HOME/USERPROFILE is overridden to a temp dir so tests never touch ~/.claudesaver/.
+ * HOME/USERPROFILE is overridden to a temp dir so tests never touch ~/.claude-saver/.
  * Ollama-dependent tests auto-skip when Ollama isn't reachable.
  */
 
@@ -57,7 +57,7 @@ function childEnv(homeDir: string): NodeJS.ProcessEnv {
   // Override home dir on all platforms
   env['HOME'] = homeDir;
   env['USERPROFILE'] = homeDir;
-  // Ensure .claudesaver resolves to temp
+  // Ensure .claude-saver resolves to temp
   env['XDG_CONFIG_HOME'] = homeDir;
   return env;
 }
@@ -254,20 +254,20 @@ async function isOllamaAvailable(): Promise<boolean> {
 }
 
 function writeConfig(homeDir: string, config: Record<string, unknown>): void {
-  const dir = path.join(homeDir, '.claudesaver');
+  const dir = path.join(homeDir, '.claude-saver');
   fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(path.join(dir, 'config.json'), JSON.stringify(config, null, 2), 'utf-8');
 }
 
 function writeMetrics(homeDir: string, entries: Record<string, unknown>[]): void {
-  const dir = path.join(homeDir, '.claudesaver');
+  const dir = path.join(homeDir, '.claude-saver');
   fs.mkdirSync(dir, { recursive: true });
   const content = entries.map(e => JSON.stringify(e)).join('\n') + (entries.length > 0 ? '\n' : '');
   fs.writeFileSync(path.join(dir, 'metrics.jsonl'), content, 'utf-8');
 }
 
 function readMetrics(homeDir: string): Record<string, unknown>[] {
-  const metricsPath = path.join(homeDir, '.claudesaver', 'metrics.jsonl');
+  const metricsPath = path.join(homeDir, '.claude-saver', 'metrics.jsonl');
   if (!fs.existsSync(metricsPath)) return [];
   return fs.readFileSync(metricsPath, 'utf-8')
     .split('\n')
@@ -292,9 +292,9 @@ describe('1. Plugin Manifests', () => {
     expect(manifest.description).toBeDefined();
   });
 
-  it('plugin.json name is "claudesaver"', () => {
+  it('plugin.json name is "claude-saver"', () => {
     const manifest = JSON.parse(fs.readFileSync(MANIFESTS.plugin, 'utf-8'));
-    expect(manifest.name).toBe('claudesaver');
+    expect(manifest.name).toBe('claude-saver');
   });
 
   it('.mcp.json is valid JSON', () => {
@@ -302,38 +302,43 @@ describe('1. Plugin Manifests', () => {
     expect(() => JSON.parse(raw)).not.toThrow();
   });
 
-  it('.mcp.json has mcpServers.claudesaver', () => {
+  it('.mcp.json has mcpServers["claude-saver"]', () => {
     const mcp = JSON.parse(fs.readFileSync(MANIFESTS.mcp, 'utf-8'));
     expect(mcp.mcpServers).toBeDefined();
-    expect(mcp.mcpServers.claudesaver).toBeDefined();
+    expect(mcp.mcpServers['claude-saver']).toBeDefined();
   });
 
   it('.mcp.json args reference mcp-server.cjs with ${CLAUDE_PLUGIN_ROOT}', () => {
     const mcp = JSON.parse(fs.readFileSync(MANIFESTS.mcp, 'utf-8'));
-    const args = mcp.mcpServers.claudesaver.args as string[];
+    const args = mcp.mcpServers['claude-saver'].args as string[];
     expect(args.some((a: string) => a.includes('mcp-server.cjs'))).toBe(true);
     expect(args.some((a: string) => a.includes('${CLAUDE_PLUGIN_ROOT}'))).toBe(true);
   });
 
-  it('hooks.json is valid JSON with 2 hooks', () => {
-    const hooks = JSON.parse(fs.readFileSync(MANIFESTS.hooks, 'utf-8'));
-    expect(hooks.hooks).toBeDefined();
-    expect(hooks.hooks).toHaveLength(2);
+  it('hooks.json is valid JSON with 2 event types', () => {
+    const data = JSON.parse(fs.readFileSync(MANIFESTS.hooks, 'utf-8'));
+    expect(data.hooks).toBeDefined();
+    expect(typeof data.hooks).toBe('object');
+    expect(Object.keys(data.hooks)).toHaveLength(2);
   });
 
   it('hooks.json has SessionStart and SubagentStop events', () => {
-    const hooks = JSON.parse(fs.readFileSync(MANIFESTS.hooks, 'utf-8'));
-    const events = hooks.hooks.map((h: { event: string }) => h.event);
+    const data = JSON.parse(fs.readFileSync(MANIFESTS.hooks, 'utf-8'));
+    const events = Object.keys(data.hooks);
     expect(events).toContain('SessionStart');
     expect(events).toContain('SubagentStop');
   });
 
   it('hooks.json commands reference correct script paths', () => {
-    const hooks = JSON.parse(fs.readFileSync(MANIFESTS.hooks, 'utf-8'));
-    for (const hook of hooks.hooks) {
-      expect(hook.command).toContain('${CLAUDE_PLUGIN_ROOT}');
-      expect(hook.command).toContain('scripts/');
-      expect(hook.command).toMatch(/\.cjs$/);
+    const data = JSON.parse(fs.readFileSync(MANIFESTS.hooks, 'utf-8'));
+    for (const eventName of Object.keys(data.hooks)) {
+      for (const matcherGroup of data.hooks[eventName]) {
+        for (const hook of matcherGroup.hooks) {
+          expect(hook.command).toContain('${CLAUDE_PLUGIN_ROOT}');
+          expect(hook.command).toContain('scripts/');
+          expect(hook.command).toMatch(/\.cjs$/);
+        }
+      }
     }
   });
 
@@ -431,7 +436,7 @@ describe('2. SubagentStop Hook', { timeout: 10000 }, () => {
       tools_used: [],
     });
     const result = await runHook(SCRIPTS.subagentStop, event, env);
-    const metricsPath = path.join(tempHome, '.claudesaver', 'metrics.jsonl');
+    const metricsPath = path.join(tempHome, '.claude-saver', 'metrics.jsonl');
     const exists = fs.existsSync(metricsPath);
     cleanup();
 
@@ -474,9 +479,9 @@ describe('2. SubagentStop Hook', { timeout: 10000 }, () => {
     expect(entries[2]['duration_ms']).toBe(300);
   });
 
-  it('creates .claudesaver/ directory if missing', async () => {
-    // Ensure no .claudesaver dir exists
-    const dir = path.join(tempHome, '.claudesaver');
+  it('creates .claude-saver/ directory if missing', async () => {
+    // Ensure no .claude-saver dir exists
+    const dir = path.join(tempHome, '.claude-saver');
     expect(fs.existsSync(dir)).toBe(false);
 
     const event = JSON.stringify({
@@ -493,7 +498,7 @@ describe('2. SubagentStop Hook', { timeout: 10000 }, () => {
     const tempHome2 = makeTempDir();
     const env2 = childEnv(tempHome2);
     await runHook(SCRIPTS.subagentStop, event, env2);
-    expect(fs.existsSync(path.join(tempHome2, '.claudesaver'))).toBe(true);
+    expect(fs.existsSync(path.join(tempHome2, '.claude-saver'))).toBe(true);
     removeTempDir(tempHome2);
   });
 
@@ -612,10 +617,10 @@ describe('4. SessionStart Hook — Ollama available', { timeout: 15000 }, () => 
     expect(typeof output.additionalContext).toBe('string');
   });
 
-  it.skipIf(!_ollamaAvailable)('content contains [ClaudeSaver] header', async () => {
+  it.skipIf(!_ollamaAvailable)('content contains [Claude-Saver] header', async () => {
     const result = await runHook(SCRIPTS.sessionStart, '', env);
     const output = JSON.parse(result.stdout);
-    expect(output.additionalContext).toContain('[ClaudeSaver]');
+    expect(output.additionalContext).toContain('[Claude-Saver]');
   });
 
   it.skipIf(!_ollamaAvailable)('content reflects delegation level from config', async () => {
@@ -715,7 +720,7 @@ describe('5. MCP Server — stdio transport', { timeout: 30000 }, () => {
     expect(result['protocolVersion']).toBeDefined();
     expect(result['serverInfo']).toBeDefined();
     const serverInfo = result['serverInfo'] as Record<string, unknown>;
-    expect(serverInfo['name']).toBe('claudesaver');
+    expect(serverInfo['name']).toBe('claude-saver');
   });
 
   it('initialize returns capabilities.tools', () => {
@@ -785,7 +790,7 @@ describe('5. MCP Server — stdio transport', { timeout: 30000 }, () => {
 
   it('config.json written to temp dir after set', async () => {
     // Already set level 3 above
-    const configPath = path.join(tempHome, '.claudesaver', 'config.json');
+    const configPath = path.join(tempHome, '.claude-saver', 'config.json');
     expect(fs.existsSync(configPath)).toBe(true);
     const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
     expect(config.delegation_level).toBe(3);
@@ -818,7 +823,7 @@ describe('5. MCP Server — stdio transport', { timeout: 30000 }, () => {
 
     await mcpToolCall(session, id(), 'claudesaver_metrics', { action: 'reset' });
 
-    const metricsPath = path.join(tempHome, '.claudesaver', 'metrics.jsonl');
+    const metricsPath = path.join(tempHome, '.claude-saver', 'metrics.jsonl');
     const content = fs.existsSync(metricsPath) ? fs.readFileSync(metricsPath, 'utf-8').trim() : '';
     expect(content).toBe('');
   });
@@ -982,7 +987,7 @@ describe('8. $CLAUDE_PLUGIN_ROOT Path Resolution', () => {
 
   it('.mcp.json args template resolves to existing file', () => {
     const mcp = JSON.parse(fs.readFileSync(MANIFESTS.mcp, 'utf-8'));
-    const args = mcp.mcpServers.claudesaver.args as string[];
+    const args = mcp.mcpServers['claude-saver'].args as string[];
     for (const arg of args) {
       const resolved = arg.replace('${CLAUDE_PLUGIN_ROOT}', PROJECT_ROOT);
       expect(fs.existsSync(resolved)).toBe(true);
@@ -990,15 +995,19 @@ describe('8. $CLAUDE_PLUGIN_ROOT Path Resolution', () => {
   });
 
   it('hooks.json command templates resolve to existing files', () => {
-    const hooks = JSON.parse(fs.readFileSync(MANIFESTS.hooks, 'utf-8'));
-    for (const hook of hooks.hooks) {
-      const command = hook.command as string;
-      // Extract the script path from "node ${CLAUDE_PLUGIN_ROOT}/scripts/xxx.cjs"
-      const parts = command.split(' ');
-      const scriptArg = parts.find((p: string) => p.includes('${CLAUDE_PLUGIN_ROOT}'));
-      if (scriptArg) {
-        const resolved = scriptArg.replace('${CLAUDE_PLUGIN_ROOT}', PROJECT_ROOT);
-        expect(fs.existsSync(resolved)).toBe(true);
+    const data = JSON.parse(fs.readFileSync(MANIFESTS.hooks, 'utf-8'));
+    for (const eventName of Object.keys(data.hooks)) {
+      for (const matcherGroup of data.hooks[eventName]) {
+        for (const hook of matcherGroup.hooks) {
+          const command = hook.command as string;
+          // Extract the script path from "node ${CLAUDE_PLUGIN_ROOT}/scripts/xxx.cjs"
+          const parts = command.split(' ');
+          const scriptArg = parts.find((p: string) => p.includes('${CLAUDE_PLUGIN_ROOT}'));
+          if (scriptArg) {
+            const resolved = scriptArg.replace('${CLAUDE_PLUGIN_ROOT}', PROJECT_ROOT);
+            expect(fs.existsSync(resolved)).toBe(true);
+          }
+        }
       }
     }
   });

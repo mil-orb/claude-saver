@@ -17,7 +17,7 @@
   "specialist_models": {},
   "metrics": {
     "enabled": true,
-    "log_path": "~/.claudesaver/metrics.jsonl"
+    "log_path": "~/.claude-saver/metrics.jsonl"
   },
   "welcome": {
     "show_savings": true,

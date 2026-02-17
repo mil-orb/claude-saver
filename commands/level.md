@@ -4,7 +4,7 @@ disable-model-invocation: true
 
 # /claudesaver:level
 
-Get or set the ClaudeSaver delegation level (0-5).
+Get or set the Claude-Saver delegation level (0-5).
 
 **Usage:**
 - `/claudesaver:level` — show current level

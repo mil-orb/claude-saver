@@ -4,7 +4,7 @@ disable-model-invocation: false
 
 # /claudesaver:setup-statusline
 
-Set up the ClaudeSaver status line to show delegation level and model at the bottom of the terminal.
+Set up the Claude-Saver status line to show delegation level and model at the bottom of the terminal.
 
 ## What to do
 

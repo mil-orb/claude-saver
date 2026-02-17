@@ -30,7 +30,7 @@ import {
 // ---------------------------------------------------------------------------
 const EXPECTED_METRICS_PATH = path.join(
   '/mock-home',
-  '.claudesaver',
+  '.claude-saver',
   'metrics.jsonl',
 );
 
@@ -83,7 +83,7 @@ describe('logCompletion', () => {
     logCompletion(defaultEntry());
 
     expect(fs.mkdirSync).toHaveBeenCalledWith(
-      expect.stringContaining('.claudesaver'),
+      expect.stringContaining('.claude-saver'),
       { recursive: true },
     );
   });

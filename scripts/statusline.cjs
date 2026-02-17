@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
- * ClaudeSaver status line script.
- * Reads ~/.claudesaver/config.json and displays delegation status.
+ * Claude-Saver status line script.
+ * Reads ~/.claude-saver/config.json and displays delegation status.
  *
  * Configure in ~/.claude/settings.json:
  *   "statusLine": { "type": "command", "command": "node /path/to/statusline.cjs" }
@@ -14,7 +14,7 @@ const path = require('path');
 const os = require('os');
 
 try {
-  const configPath = path.join(os.homedir(), '.claudesaver', 'config.json');
+  const configPath = path.join(os.homedir(), '.claude-saver', 'config.json');
   let level = 2;
   let model = 'unknown';
 
@@ -54,12 +54,12 @@ try {
   const name = LEVEL_NAMES[level] || 'Unknown';
 
   if (level === 5) {
-    process.stdout.write(`ClaudeSaver LOCAL MODE | ${shortModel}`);
+    process.stdout.write(`Claude-Saver LOCAL MODE | ${shortModel}`);
   } else if (level === 0) {
-    process.stdout.write(`ClaudeSaver Off`);
+    process.stdout.write(`Claude-Saver Off`);
   } else {
-    process.stdout.write(`ClaudeSaver L${level} (${name}) | ${shortModel}`);
+    process.stdout.write(`Claude-Saver L${level} (${name}) | ${shortModel}`);
   }
 } catch {
-  process.stdout.write('ClaudeSaver');
+  process.stdout.write('Claude-Saver');
 }

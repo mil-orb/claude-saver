@@ -1,14 +1,24 @@
 {
-  "hooks": [
-    {
-      "event": "SessionStart",
-      "type": "command",
-      "command": "node ${CLAUDE_PLUGIN_ROOT}/scripts/session-start-hook.cjs"
-    },
-    {
-      "event": "SubagentStop",
-      "type": "command",
-      "command": "node ${CLAUDE_PLUGIN_ROOT}/scripts/subagent-stop-hook.cjs"
-    }
-  ]
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node ${CLAUDE_PLUGIN_ROOT}/scripts/session-start-hook.cjs"
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node ${CLAUDE_PLUGIN_ROOT}/scripts/subagent-stop-hook.cjs"
+          }
+        ]
+      }
+    ]
+  }
 }
