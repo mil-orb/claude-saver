@@ -315,17 +315,18 @@ describe('1. Plugin Manifests', () => {
     expect(args.some((a: string) => a.includes('${CLAUDE_PLUGIN_ROOT}'))).toBe(true);
   });
 
-  it('hooks.json is valid JSON with 2 event types', () => {
+  it('hooks.json is valid JSON with 3 event types', () => {
     const data = JSON.parse(fs.readFileSync(MANIFESTS.hooks, 'utf-8'));
     expect(data.hooks).toBeDefined();
     expect(typeof data.hooks).toBe('object');
-    expect(Object.keys(data.hooks)).toHaveLength(2);
+    expect(Object.keys(data.hooks)).toHaveLength(3);
   });
 
-  it('hooks.json has SessionStart and SubagentStop events', () => {
+  it('hooks.json has SessionStart, UserPromptSubmit, and SubagentStop events', () => {
     const data = JSON.parse(fs.readFileSync(MANIFESTS.hooks, 'utf-8'));
     const events = Object.keys(data.hooks);
     expect(events).toContain('SessionStart');
+    expect(events).toContain('UserPromptSubmit');
     expect(events).toContain('SubagentStop');
   });
 

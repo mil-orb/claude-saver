@@ -1,5 +1,5 @@
 {
-  "description": "Claude-Saver plugin hooks — session health check and metrics logging",
+  "description": "Claude-Saver plugin hooks — session health check, metrics logging, and local command interception",
   "hooks": {
     "SessionStart": [
       {
@@ -8,6 +8,17 @@
             "type": "command",
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/session-start-hook.cjs\"",
             "timeout": 30
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/prompt-submit-hook.cjs\"",
+            "timeout": 120
           }
         ]
       }

@@ -36,6 +36,12 @@ const subagentStopBuild = {
   outfile: 'scripts/subagent-stop-hook.cjs',
 };
 
+const promptSubmitBuild = {
+  ...sharedOptions,
+  entryPoints: ['src/hooks/prompt-submit.ts'],
+  outfile: 'scripts/prompt-submit-hook.cjs',
+};
+
 const dashboardBuild = {
   ...sharedOptions,
   entryPoints: ['src/dashboard/server.ts'],
@@ -61,7 +67,8 @@ async function build() {
     const hookCtx2 = await esbuild.context(subagentStopBuild);
     const dashCtx = await esbuild.context(dashboardBuild);
     const cliCtx = await esbuild.context(cliBuild);
-    await Promise.all([mcpCtx.watch(), hookCtx1.watch(), hookCtx2.watch(), dashCtx.watch(), cliCtx.watch()]);
+    const promptCtx = await esbuild.context(promptSubmitBuild);
+    await Promise.all([mcpCtx.watch(), hookCtx1.watch(), hookCtx2.watch(), dashCtx.watch(), cliCtx.watch(), promptCtx.watch()]);
     await copyDashboardHTML();
     console.log('Watching for changes...');
   } else {
@@ -71,6 +78,7 @@ async function build() {
       esbuild.build(subagentStopBuild),
       esbuild.build(dashboardBuild),
       esbuild.build(cliBuild),
+      esbuild.build(promptSubmitBuild),
     ]);
     await copyDashboardHTML();
   }
