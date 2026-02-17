@@ -162,6 +162,7 @@ Key design choices:
 | `/claudesaver:status` | Quick Ollama health and savings check |
 | `/claudesaver:level` | Get or set delegation level (`/claudesaver:level 3`) |
 | `/claudesaver:config` | Edit configuration interactively |
+| `/claudesaver:setup-statusline` | Add delegation level and model to your terminal status bar |
 | `/claudesaver:benchmark` | Compare local vs cloud output for a task |
 
 ## Configuration
