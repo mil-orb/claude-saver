@@ -336,17 +336,19 @@ describe('1. Plugin Manifests', () => {
         for (const hook of matcherGroup.hooks) {
           expect(hook.command).toContain('${CLAUDE_PLUGIN_ROOT}');
           expect(hook.command).toContain('scripts/');
-          expect(hook.command).toMatch(/\.cjs$/);
+          expect(hook.command).toMatch(/\.cjs["']?$/);
         }
       }
     }
   });
 
-  it('marketplace.json is valid JSON with publisher and categories', () => {
+  it('marketplace.json is valid JSON with name and plugins', () => {
     const market = JSON.parse(fs.readFileSync(MANIFESTS.marketplace, 'utf-8'));
-    expect(market.publisher).toBeDefined();
-    expect(market.categories).toBeDefined();
-    expect(Array.isArray(market.categories)).toBe(true);
+    expect(market.name).toBeDefined();
+    expect(market.plugins).toBeDefined();
+    expect(Array.isArray(market.plugins)).toBe(true);
+    expect(market.plugins.length).toBeGreaterThan(0);
+    expect(market.plugins[0].source).toBeDefined();
   });
 
   it('all 3 .cjs bundles exist and mcp-server.cjs > 100KB', () => {
@@ -1007,7 +1009,8 @@ describe('8. $CLAUDE_PLUGIN_ROOT Path Resolution', () => {
           const parts = command.split(' ');
           const scriptArg = parts.find((p: string) => p.includes('${CLAUDE_PLUGIN_ROOT}'));
           if (scriptArg) {
-            const resolved = scriptArg.replace('${CLAUDE_PLUGIN_ROOT}', PROJECT_ROOT);
+            const cleaned = scriptArg.replace(/["']/g, '');
+            const resolved = cleaned.replace('${CLAUDE_PLUGIN_ROOT}', PROJECT_ROOT);
             expect(fs.existsSync(resolved)).toBe(true);
           }
         }

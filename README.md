@@ -1,5 +1,9 @@
 # Claude-Saver
 
+[![CI](https://github.com/mil-orb/claude-saver/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/mil-orb/claude-saver/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Node](https://img.shields.io/badge/node-%3E%3D18-brightgreen.svg)](https://nodejs.org/)
+
 **Run coding tasks on your local GPU. Save tokens. Keep your code private.**
 
 Claude-Saver is a [Claude Code](https://docs.anthropic.com/en/docs/claude-code) plugin that routes routine work to local [Ollama](https://ollama.com/) models running on your machine. Docstrings, commit messages, boilerplate, format conversions, file analysis, and simple code generation all run locally — while architecture decisions, debugging, and security review stay on the cloud API where they belong.
@@ -10,9 +14,11 @@ The result: lower API bills, faster responses for simple tasks, and file content
 
 ## Why Claude-Saver?
 
-**Save money.** Every token processed locally is a token you don't pay Anthropic for. At the default delegation level, a typical workday saves ~30K cloud output tokens.
+**Save money.** Every token processed locally is a token you don't pay Anthropic for. A typical workday with 43 delegated tasks saves ~7K cloud output tokens — that's ~160K tokens/month at Opus rates ($25/M output), netting real dollar savings after overhead.
 
-**Honest accounting.** Unlike naive "tokens saved" counters, Claude-Saver tracks the real cost — including the overhead of making tool calls. The dashboard shows net savings after subtracting wrapper costs, so you always know the true picture.
+**Honest accounting.** Unlike naive "tokens saved" counters, Claude-Saver tracks the real cost — including the cloud overhead of making tool calls (the JSON wrapper Claude generates + the result it reads back). The dashboard shows net savings after subtracting wrapper costs, so you always know the true picture. Maximum theoretical efficiency is 74% — the other 26% is unavoidable MCP protocol overhead.
+
+**Use your local model without leaving Claude Code.** Run `/claudesaver:ask` to send any prompt directly to your local Ollama model — right inside your Claude Code session. No terminal swapping, no copy-pasting between windows. Your local GPU is one command away.
 
 **Keep code private.** The `claudesaver_fs` tools return only metadata (file trees, line counts, git status) — never raw file contents. When you use `claudesaver_analyze_file`, the file is read and analyzed entirely on your local machine. Nothing is sent to any cloud API.
 
@@ -105,7 +111,7 @@ At the default level (Level 2 — Balanced):
 | Simple code generation with clear specs | Anything you ask Claude's opinion on |
 | Unit test boilerplate | Design trade-off discussions |
 
-**Break-even rule:** Claude-Saver won't delegate tasks where the expected output is under ~200 tokens. For short answers, the tool-call overhead costs more than it saves — so those are answered directly.
+**Break-even rule:** The mathematical break-even point is ~22 output tokens — below that, the tool-call overhead costs more than it saves. In practice, Claude-Saver skips delegation for tasks under ~200 tokens because the absolute savings are negligible (under $0.001 even at Opus pricing) and local models are more likely to produce low-quality output for very short tasks.
 
 ### Delegation Levels
 
@@ -146,13 +152,31 @@ The dashboard auto-refreshes every 10 seconds and runs entirely on your machine.
 
 ---
 
+## Local Model Access — Without Leaving Claude Code
+
+One of Claude-Saver's most useful features: **`/claudesaver:ask`** lets you talk directly to your local Ollama model inside the same Claude Code session.
+
+```
+/claudesaver:ask explain the difference between mutex and semaphore
+```
+
+No terminal switching. No copy-pasting. Your local GPU answers right in the Claude Code interface, and the response includes model name, token count, and latency so you know exactly what happened. Every prompt goes local — no cloud API involvement, no exceptions.
+
+This is useful for:
+- Quick questions you don't want to burn API tokens on
+- Testing your local model's capabilities
+- Private queries about sensitive code or data
+- Comparing local vs cloud answers side by side
+
+---
+
 ## Commands
 
 | Command | Description |
 |---|---|
 | `/claudesaver:settings` | Full settings dashboard — change level, model, metrics, view stats |
 | `/claudesaver:dashboard` | Open the web dashboard in your browser |
-| `/claudesaver:ask` | Run a prompt entirely on the local model — no exceptions |
+| `/claudesaver:ask` | Run any prompt on your local model — right inside Claude Code, no terminal switching |
 | `/claudesaver:local` | Toggle Local Model Mode (switch to Level 5 and back) |
 | `/claudesaver:status` | Quick Ollama health and savings check |
 | `/claudesaver:level` | Get or set delegation level |
@@ -260,7 +284,7 @@ Or via the interactive command:
 | `routing.use_local_triage` | Classify ambiguous tasks with your local model (~200 local tokens). Recommended on. |
 | `routing.use_historical_learning` | Adjust routing based on past success rates. Needs `learner_min_records` entries first. |
 | `metrics.enabled` | Set `false` to stop logging. Existing metrics remain readable. |
-| `welcome.cost_per_million_tokens` | Used to estimate dollar savings. Default $8/M (approximate Claude output cost). |
+| `welcome.cost_per_million_tokens` | Used to estimate dollar savings. Default $8/M (blended estimate). Actual rates: Haiku $5/M, Sonnet $15/M, Opus $25/M output. |
 
 ---
 
@@ -334,7 +358,7 @@ curl http://localhost:11434/api/tags    # Should return JSON with models
 npm install
 npm run build       # esbuild: TypeScript -> CJS bundles in scripts/
 npm run dev         # Watch mode
-npm test            # 500+ tests (unit + integration + E2E)
+npm test            # 570+ tests (unit + integration + E2E)
 npm run typecheck   # tsc --noEmit
 ```
 
@@ -342,7 +366,7 @@ npm run typecheck   # tsc --noEmit
 
 | Category | Tests | Coverage |
 |---|---|---|
-| Unit tests | 400+ | Classification engine, config, metrics, fs tools, security |
+| Unit tests | 430+ | Classification engine, config, metrics, fs tools, security, net savings accuracy |
 | Integration | 89 | Full routing pipeline with 50+ realistic prompts |
 | E2E (subprocess) | 57 | Compiled bundles as real subprocesses: hooks, MCP JSON-RPC, manifests, cross-component metrics |
 

@@ -122,6 +122,19 @@ function formatTokens(tokens) {
   if (tokens >= 1e3) return `${(tokens / 1e3).toFixed(1)}K`;
   return String(tokens);
 }
+function detectModelCostRate(configRate) {
+  const modelId = (process.env["CLAUDE_MODEL"] ?? process.env["ANTHROPIC_MODEL"] ?? "").toLowerCase();
+  if (modelId.includes("opus")) {
+    return { rate: 25, model_tier: "Opus" };
+  }
+  if (modelId.includes("sonnet")) {
+    return { rate: 15, model_tier: "Sonnet" };
+  }
+  if (modelId.includes("haiku")) {
+    return { rate: 5, model_tier: "Haiku" };
+  }
+  return { rate: configRate, model_tier: `$${configRate}/M` };
+}
 function getDelegationInstructions(level) {
   switch (level) {
     case 0:
@@ -189,12 +202,13 @@ async function main() {
     lines.push(`[Claude-Saver] Ollama connected (${health.latency_ms}ms)`);
   }
   if (config.welcome.show_savings) {
-    const savings = loadSavings(config.welcome.cost_per_million_tokens);
+    const { rate, model_tier } = detectModelCostRate(config.welcome.cost_per_million_tokens);
+    const savings = loadSavings(rate);
     if (savings.local_tasks > 0) {
       const netSign = savings.net_cost_saved >= 0 ? "" : "-";
-      lines.push(`Savings: ${formatTokens(savings.total_local_tokens)} local tokens across ${savings.local_tasks} tasks \u2014 net ~${netSign}$${Math.abs(savings.net_cost_saved)} saved (after $${savings.overhead_cost} overhead)`);
+      lines.push(`Savings: ${formatTokens(savings.total_local_tokens)} local tokens across ${savings.local_tasks} tasks \u2014 net ~${netSign}$${Math.abs(savings.net_cost_saved)} saved at ${model_tier} rates (after $${savings.overhead_cost} overhead)`);
     } else {
-      lines.push(`Savings: No local completions yet \u2014 delegate 200+ token tasks to save.`);
+      lines.push(`Savings: No local completions yet \u2014 delegate 200+ token tasks to save (${model_tier} output: $${rate}/M).`);
     }
   }
   if (config.welcome.show_models) {

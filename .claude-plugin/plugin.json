@@ -1,6 +1,11 @@
 {
   "name": "claude-saver",
   "version": "0.1.0",
-  "description": "Intelligently route coding tasks between cloud API and local Ollama models to reduce token usage",
-  "keywords": ["ollama", "local-models", "token-savings", "cost-optimization", "routing"]
+  "description": "Route coding tasks to local Ollama models — save tokens, keep code private, use your GPU",
+  "author": {
+    "name": "mil-orb"
+  },
+  "repository": "https://github.com/mil-orb/claude-saver",
+  "license": "MIT",
+  "keywords": ["ollama", "local-models", "token-savings", "cost-optimization", "privacy", "routing"]
 }

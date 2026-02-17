@@ -1,11 +1,13 @@
 {
+  "description": "Claude-Saver plugin hooks — session health check and metrics logging",
   "hooks": {
     "SessionStart": [
       {
         "hooks": [
           {
             "type": "command",
-            "command": "node ${CLAUDE_PLUGIN_ROOT}/scripts/session-start-hook.cjs"
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/session-start-hook.cjs\"",
+            "timeout": 30
           }
         ]
       }
@@ -15,7 +17,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node ${CLAUDE_PLUGIN_ROOT}/scripts/subagent-stop-hook.cjs"
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/subagent-stop-hook.cjs\"",
+            "timeout": 30
           }
         ]
       }

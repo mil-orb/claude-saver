@@ -146,6 +146,33 @@ function formatTokens(tokens: number): string {
 }
 
 /**
+ * Detect the Claude model in use and return the correct output token price.
+ * Falls back to the user's configured cost_per_million_tokens if detection fails.
+ *
+ * Output pricing (Anthropic, Feb 2026):
+ *   Haiku 4.5:  $5/M output tokens
+ *   Sonnet 4.5: $15/M output tokens
+ *   Opus 4.6:   $25/M output tokens
+ */
+function detectModelCostRate(configRate: number): { rate: number; model_tier: string } {
+  // Claude Code sets CLAUDE_MODEL or the model shows up in process env
+  const modelId = (process.env['CLAUDE_MODEL'] ?? process.env['ANTHROPIC_MODEL'] ?? '').toLowerCase();
+
+  if (modelId.includes('opus')) {
+    return { rate: 25, model_tier: 'Opus' };
+  }
+  if (modelId.includes('sonnet')) {
+    return { rate: 15, model_tier: 'Sonnet' };
+  }
+  if (modelId.includes('haiku')) {
+    return { rate: 5, model_tier: 'Haiku' };
+  }
+
+  // No model detected — use config value
+  return { rate: configRate, model_tier: `$${configRate}/M` };
+}
+
+/**
  * Returns level-specific behavioral instructions that tell Claude
  * WHEN and HOW to delegate tasks to local models.
  *
@@ -238,14 +265,15 @@ async function main(): Promise<void> {
     lines.push(`[Claude-Saver] Ollama connected (${health.latency_ms}ms)`);
   }
 
-  // Savings display — show honest net savings after overhead
+  // Savings display — show honest net savings after overhead, using model-aware pricing
   if (config.welcome.show_savings) {
-    const savings = loadSavings(config.welcome.cost_per_million_tokens);
+    const { rate, model_tier } = detectModelCostRate(config.welcome.cost_per_million_tokens);
+    const savings = loadSavings(rate);
     if (savings.local_tasks > 0) {
       const netSign = savings.net_cost_saved >= 0 ? '' : '-';
-      lines.push(`Savings: ${formatTokens(savings.total_local_tokens)} local tokens across ${savings.local_tasks} tasks — net ~${netSign}$${Math.abs(savings.net_cost_saved)} saved (after $${savings.overhead_cost} overhead)`);
+      lines.push(`Savings: ${formatTokens(savings.total_local_tokens)} local tokens across ${savings.local_tasks} tasks — net ~${netSign}$${Math.abs(savings.net_cost_saved)} saved at ${model_tier} rates (after $${savings.overhead_cost} overhead)`);
     } else {
-      lines.push(`Savings: No local completions yet — delegate 200+ token tasks to save.`);
+      lines.push(`Savings: No local completions yet — delegate 200+ token tasks to save (${model_tier} output: $${rate}/M).`);
     }
   }
 

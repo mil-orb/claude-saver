@@ -50,7 +50,7 @@ server.tool(
 
 server.tool(
   'claudesaver_fs_preview',
-  'Safe file preview — returns ONLY structure (function/class names, imports, exports, signatures), never sensitive content',
+  'File preview — structure mode returns function/class names, imports, exports, signatures. Head mode returns first N lines of raw content (max 100).',
   {
     file_path: z.string().describe('File to preview'),
     mode: z.enum(['structure', 'head', 'imports', 'exports', 'signatures']).describe('Preview mode'),
@@ -293,6 +293,12 @@ server.tool(
       if (action === 'set') {
         if (!key) return err('key is required for set action');
         if (value === undefined) return err('value is required for set action');
+        // Prevent redirecting data to remote servers via base_url
+        if (key === 'ollama.base_url' && typeof value === 'string') {
+          if (!isLocalUrl(value)) {
+            return err('ollama.base_url must point to a local address (localhost, 127.0.0.1, or private network). Setting a remote URL would send your data externally.');
+          }
+        }
         const config = loadConfig();
         const success = setByPath(config as unknown as Record<string, unknown>, key, value);
         if (!success) return err(`Cannot set config key: ${key}`);
@@ -306,6 +312,18 @@ server.tool(
     }
   }
 );
+
+function isLocalUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    const host = parsed.hostname;
+    return host === 'localhost' || host === '127.0.0.1' || host === '::1'
+      || host.startsWith('192.168.') || host.startsWith('10.')
+      || /^172\.(1[6-9]|2\d|3[01])\./.test(host);
+  } catch {
+    return false;
+  }
+}
 
 function getByPath(obj: Record<string, unknown>, path: string): unknown {
   const parts = path.split('.');

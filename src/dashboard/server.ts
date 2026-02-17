@@ -64,10 +64,19 @@ interface SummaryData {
   models: Record<string, number>;
 }
 
+function detectModelCostRate(): number | null {
+  const modelId = (process.env['CLAUDE_MODEL'] ?? process.env['ANTHROPIC_MODEL'] ?? '').toLowerCase();
+  if (modelId.includes('opus')) return 25;
+  if (modelId.includes('sonnet')) return 15;
+  if (modelId.includes('haiku')) return 5;
+  return null;
+}
+
 function computeDashboardData(): SummaryData {
   const entries = loadMetricsData();
   const config = loadConfig();
-  const costRate = (config as { welcome?: { cost_per_million_tokens?: number } })?.welcome?.cost_per_million_tokens ?? 8;
+  const configRate = (config as { welcome?: { cost_per_million_tokens?: number } })?.welcome?.cost_per_million_tokens ?? 8;
+  const costRate = detectModelCostRate() ?? configRate;
 
   let totalLocalTokens = 0;
   let totalOverhead = 0;
@@ -164,9 +173,11 @@ function getDashboardHTML(): string {
 const server = http.createServer((req, res) => {
   const url = new URL(req.url ?? '/', `http://${HOST}:${PORT}`);
 
-  // CORS headers for local dev
-  res.setHeader('Access-Control-Allow-Origin', '*');
+  // Restrict CORS to localhost only — prevent cross-origin data exfiltration
+  res.setHeader('Access-Control-Allow-Origin', `http://127.0.0.1:${PORT}`);
   res.setHeader('Access-Control-Allow-Methods', 'GET');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
 
   if (url.pathname === '/api/data') {
     const data = computeDashboardData();

@@ -117,10 +117,23 @@ export function logCompletion(entry: {
   }
 }
 
+/**
+ * Detect the Claude model output token price from environment variables.
+ * Haiku=$5/M, Sonnet=$15/M, Opus=$25/M output tokens.
+ */
+function detectModelCostRate(): number | null {
+  const modelId = (process.env['CLAUDE_MODEL'] ?? process.env['ANTHROPIC_MODEL'] ?? '').toLowerCase();
+  if (modelId.includes('opus')) return 25;
+  if (modelId.includes('sonnet')) return 15;
+  if (modelId.includes('haiku')) return 5;
+  return null;
+}
+
 export function computeSummary(entries?: AnyMetricsEntry[], costPerMillionTokens?: number): MetricsSummary {
   const config = loadConfig();
   const metrics = entries ?? loadMetrics();
-  const costRate = costPerMillionTokens ?? config.welcome.cost_per_million_tokens;
+  // Priority: explicit param > detected model > config value
+  const costRate = costPerMillionTokens ?? detectModelCostRate() ?? config.welcome.cost_per_million_tokens;
   const sessions = new Set(metrics.map(m => m.session_id));
   const toolsFreq: Record<string, number> = {};
 

@@ -60,10 +60,18 @@ function loadConfig() {
 function estimateOverhead(tokensUsed) {
   return 80 + Math.ceil(tokensUsed * 1.3);
 }
+function detectModelCostRate() {
+  const modelId = (process.env["CLAUDE_MODEL"] ?? process.env["ANTHROPIC_MODEL"] ?? "").toLowerCase();
+  if (modelId.includes("opus")) return 25;
+  if (modelId.includes("sonnet")) return 15;
+  if (modelId.includes("haiku")) return 5;
+  return null;
+}
 function computeDashboardData() {
   const entries = loadMetricsData();
   const config = loadConfig();
-  const costRate = config?.welcome?.cost_per_million_tokens ?? 8;
+  const configRate = config?.welcome?.cost_per_million_tokens ?? 8;
+  const costRate = detectModelCostRate() ?? configRate;
   let totalLocalTokens = 0;
   let totalOverhead = 0;
   let completionCount = 0;
@@ -135,8 +143,10 @@ function getDashboardHTML() {
 }
 var server = http.createServer((req, res) => {
   const url = new URL(req.url ?? "/", `http://${HOST}:${PORT}`);
-  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Origin", `http://127.0.0.1:${PORT}`);
   res.setHeader("Access-Control-Allow-Methods", "GET");
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Frame-Options", "DENY");
   if (url.pathname === "/api/data") {
     const data = computeDashboardData();
     res.writeHead(200, { "Content-Type": "application/json" });

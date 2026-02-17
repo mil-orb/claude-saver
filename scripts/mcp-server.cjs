@@ -22302,10 +22302,17 @@ function logCompletion(entry) {
   } catch {
   }
 }
+function detectModelCostRate() {
+  const modelId = (process.env["CLAUDE_MODEL"] ?? process.env["ANTHROPIC_MODEL"] ?? "").toLowerCase();
+  if (modelId.includes("opus")) return 25;
+  if (modelId.includes("sonnet")) return 15;
+  if (modelId.includes("haiku")) return 5;
+  return null;
+}
 function computeSummary(entries, costPerMillionTokens) {
   const config2 = loadConfig();
   const metrics = entries ?? loadMetrics();
-  const costRate = costPerMillionTokens ?? config2.welcome.cost_per_million_tokens;
+  const costRate = costPerMillionTokens ?? detectModelCostRate() ?? config2.welcome.cost_per_million_tokens;
   const sessions = new Set(metrics.map((m) => m.session_id));
   const toolsFreq = {};
   let totalDuration = 0;
@@ -22397,7 +22404,7 @@ server.tool(
 );
 server.tool(
   "claudesaver_fs_preview",
-  "Safe file preview \u2014 returns ONLY structure (function/class names, imports, exports, signatures), never sensitive content",
+  "File preview \u2014 structure mode returns function/class names, imports, exports, signatures. Head mode returns first N lines of raw content (max 100).",
   {
     file_path: external_exports.string().describe("File to preview"),
     mode: external_exports.enum(["structure", "head", "imports", "exports", "signatures"]).describe("Preview mode"),
@@ -22622,6 +22629,11 @@ server.tool(
       if (action === "set") {
         if (!key) return err("key is required for set action");
         if (value === void 0) return err("value is required for set action");
+        if (key === "ollama.base_url" && typeof value === "string") {
+          if (!isLocalUrl(value)) {
+            return err("ollama.base_url must point to a local address (localhost, 127.0.0.1, or private network). Setting a remote URL would send your data externally.");
+          }
+        }
         const config2 = loadConfig();
         const success = setByPath(config2, key, value);
         if (!success) return err(`Cannot set config key: ${key}`);
@@ -22634,6 +22646,15 @@ server.tool(
     }
   }
 );
+function isLocalUrl(url) {
+  try {
+    const parsed = new URL(url);
+    const host = parsed.hostname;
+    return host === "localhost" || host === "127.0.0.1" || host === "::1" || host.startsWith("192.168.") || host.startsWith("10.") || /^172\.(1[6-9]|2\d|3[01])\./.test(host);
+  } catch {
+    return false;
+  }
+}
 function getByPath(obj, path5) {
   const parts = path5.split(".");
   let current = obj;
