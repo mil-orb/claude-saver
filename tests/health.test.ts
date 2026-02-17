@@ -32,10 +32,11 @@ vi.mock('../src/mcp-server/config.js', () => ({
 const mockFetch = vi.fn();
 vi.stubGlobal('fetch', mockFetch);
 
-import { checkHealth, ollamaChat } from '../src/mcp-server/health.js';
+import { checkHealth, ollamaChat, clearModelCache } from '../src/mcp-server/health.js';
 
 beforeEach(() => {
   mockFetch.mockReset();
+  clearModelCache();
 });
 
 afterEach(() => {
@@ -99,11 +100,21 @@ describe('checkHealth', () => {
   });
 });
 
+/** Prepend a mock for resolveModel() which fetches /api/tags before every chat call */
+function mockResolveModel() {
+  mockFetch.mockResolvedValueOnce({
+    ok: true,
+    status: 200,
+    json: async () => ({ models: [{ name: 'test-model', size: 1000 }] }),
+  });
+}
+
 // ---------------------------------------------------------------------------
 // ollamaChat — normal responses
 // ---------------------------------------------------------------------------
 describe('ollamaChat — normal responses', () => {
   it('returns response text from a normal completion', async () => {
+    mockResolveModel();
     mockFetch.mockResolvedValueOnce({
       ok: true,
       status: 200,
@@ -121,6 +132,7 @@ describe('ollamaChat — normal responses', () => {
   });
 
   it('returns both thinking and content fields when present', async () => {
+    mockResolveModel();
     mockFetch.mockResolvedValueOnce({
       ok: true,
       status: 200,
@@ -141,6 +153,7 @@ describe('ollamaChat — normal responses', () => {
   });
 
   it('returns correct token counts and duration', async () => {
+    mockResolveModel();
     mockFetch.mockResolvedValueOnce({
       ok: true,
       status: 200,
@@ -164,6 +177,7 @@ describe('ollamaChat — normal responses', () => {
 // ---------------------------------------------------------------------------
 describe('ollamaChat — thinking model edge cases', () => {
   it('extracts code block from thinking when content is empty', async () => {
+    mockResolveModel();
     const codeBlock = '```typescript\nconsole.log("hello");\n```';
     mockFetch.mockResolvedValueOnce({
       ok: true,
@@ -184,6 +198,7 @@ describe('ollamaChat — thinking model edge cases', () => {
   });
 
   it('extracts last paragraph from thinking when content is empty and no code block', async () => {
+    mockResolveModel();
     const thinkingText =
       'First I considered option A.\n\n' +
       'Then I evaluated option B.\n\n' +
@@ -207,6 +222,7 @@ describe('ollamaChat — thinking model edge cases', () => {
   });
 
   it('uses content over thinking when both are present', async () => {
+    mockResolveModel();
     mockFetch.mockResolvedValueOnce({
       ok: true,
       status: 200,
@@ -226,6 +242,7 @@ describe('ollamaChat — thinking model edge cases', () => {
   });
 
   it('returns fallback message when both content and thinking are empty', async () => {
+    mockResolveModel();
     mockFetch.mockResolvedValueOnce({
       ok: true,
       status: 200,
@@ -244,6 +261,7 @@ describe('ollamaChat — thinking model edge cases', () => {
   });
 
   it('returns done_reason when response is truncated (length)', async () => {
+    mockResolveModel();
     mockFetch.mockResolvedValueOnce({
       ok: true,
       status: 200,
@@ -266,6 +284,7 @@ describe('ollamaChat — thinking model edge cases', () => {
 // ---------------------------------------------------------------------------
 describe('ollamaChat — error handling', () => {
   it('throws with error message when Ollama returns HTTP 400', async () => {
+    mockResolveModel();
     mockFetch.mockResolvedValueOnce({
       ok: false,
       status: 400,
@@ -276,6 +295,7 @@ describe('ollamaChat — error handling', () => {
   });
 
   it('throws when Ollama returns invalid JSON', async () => {
+    mockResolveModel();
     mockFetch.mockResolvedValueOnce({
       ok: true,
       status: 200,
@@ -286,6 +306,7 @@ describe('ollamaChat — error handling', () => {
   });
 
   it('throws when fetch is aborted (timeout)', async () => {
+    mockResolveModel();
     const abortError = new DOMException('The operation was aborted', 'AbortError');
     mockFetch.mockRejectedValueOnce(abortError);
 

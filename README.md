@@ -152,21 +152,23 @@ The dashboard auto-refreshes every 10 seconds and runs entirely on your machine.
 
 ---
 
-## Local Model Access — Without Leaving Claude Code
+## Ask Your Local Model — Without Leaving Claude Code
 
-One of Claude-Saver's most useful features: **`/claudesaver:ask`** lets you talk directly to your local Ollama model inside the same Claude Code session.
+Every question you type in Claude Code costs API tokens. A simple "what does this function do?" can burn 500+ output tokens at $15-25/M. With **`/claudesaver:ask`**, that same question runs on your local GPU instead — **zero API cost, zero cloud contact, instant response**.
 
 ```
-/claudesaver:ask explain the difference between mutex and semaphore
+/claudesaver:ask what does this regex do: /^(?:[a-z0-9]+(?:-[a-z0-9]+)*)$/
 ```
 
-No terminal switching. No copy-pasting. Your local GPU answers right in the Claude Code interface, and the response includes model name, token count, and latency so you know exactly what happened. Every prompt goes local — no cloud API involvement, no exceptions.
+Your local model answers right in the Claude Code interface. No terminal switching, no copy-pasting between windows, no context loss. The response shows the model name, token count, and latency so you always know what happened.
 
-This is useful for:
-- Quick questions you don't want to burn API tokens on
-- Testing your local model's capabilities
-- Private queries about sensitive code or data
-- Comparing local vs cloud answers side by side
+**Why this matters:**
+- **Save tokens on simple questions** — "what's the syntax for X?", "explain this error", "convert this to YAML" — these don't need a $25/M model
+- **Save context window** — questions answered locally don't add to Claude's conversation history, keeping your context window free for complex work
+- **Keep code private** — sensitive code, credentials in config files, proprietary logic — ask about them locally without anything leaving your machine
+- **Compare answers** — ask the same question to both your local model and Claude to see when local is good enough
+
+Think of it as having two models open side-by-side, but in the same terminal.
 
 ---
 
@@ -174,9 +176,22 @@ This is useful for:
 
 | Command | Description |
 |---|---|
-| `/claudesaver:ask` | Run any prompt on your local model — right inside Claude Code, no terminal switching |
+| `/claudesaver:ask` | Run any prompt on your local model — zero API tokens, zero cloud contact |
 | `/claudesaver:settings` | Interactive dashboard — view status, change level, model, metrics, reset savings |
 | `/claudesaver:dashboard` | Open the web metrics dashboard in your browser |
+
+### CLI (Zero Tokens)
+
+Slash commands still cost API tokens because Claude processes them. For truly zero-cost management, use the standalone CLI directly in your terminal:
+
+```bash
+node scripts/cli.cjs                  # Interactive settings menu
+node scripts/cli.cjs status           # Quick health + savings check
+node scripts/cli.cjs settings         # Change level, model, toggle metrics
+node scripts/cli.cjs ask "prompt"     # Send prompt to Ollama directly
+node scripts/cli.cjs dashboard        # Open web dashboard
+node scripts/cli.cjs reset            # Clear metrics history
+```
 
 ---
 

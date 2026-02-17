@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "description": "Claude Code plugin that intelligently routes tasks between cloud API and local Ollama models to reduce token usage",
   "type": "module",
+  "bin": {
+    "claudesaver": "scripts/cli.cjs"
+  },
   "scripts": {
     "build": "node scripts/build.js",
     "dev": "node scripts/build.js --watch",
