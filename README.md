@@ -137,9 +137,10 @@ Key design choices:
 
 | Command | Description |
 |---|---|
-| `/claudesaver:status` | Ollama health, current level, savings summary |
-| `/claudesaver:level` | Get or set delegation level |
-| `/claudesaver:config` | Edit configuration |
+| `/claudesaver:settings` | Integrated dashboard — view status, change level, switch models, toggle metrics, reset savings |
+| `/claudesaver:status` | Quick Ollama health and savings check |
+| `/claudesaver:level` | Get or set delegation level (`/claudesaver:level 3`) |
+| `/claudesaver:config` | Edit configuration interactively |
 | `/claudesaver:benchmark` | Compare local vs cloud output for a task |
 
 ## Configuration
@@ -152,13 +153,19 @@ Settings live in `~/.claudesaver/config.json`. The plugin creates this directory
   "ollama": {
     "base_url": "http://localhost:11434",
     "default_model": "qwen3:8b",
+    "fallback_model": null,
     "timeout_ms": 120000,
     "health_timeout_ms": 3000
   },
   "routing": {
     "use_local_triage": true,
     "use_historical_learning": false,
+    "learner_min_records": 50,
     "enable_decomposition": false
+  },
+  "metrics": {
+    "enabled": true,
+    "log_path": "~/.claudesaver/metrics.jsonl"
   },
   "welcome": {
     "show_savings": true,
@@ -173,9 +180,19 @@ Settings live in `~/.claudesaver/config.json`. The plugin creates this directory
 
 **`ollama.default_model`** — Which model handles delegated tasks. Thinking models like `qwen3:8b` or `devstral:24b` work well.
 
+**`ollama.fallback_model`** — Backup model used when the primary fails (e.g., model not loaded, OOM). Set to a smaller model like `qwen3:1.7b` for resilience, or leave `null` to disable.
+
 **`ollama.timeout_ms`** — How long to wait for Ollama responses. Increase if you're running large models on CPU.
 
 **`routing.use_local_triage`** — When true, ambiguous tasks (not caught by patterns or heuristics) get classified by your local model before routing. Costs ~200 local tokens per ambiguous task. Recommended.
+
+**`routing.use_historical_learning`** — When true, the learner adjusts routing confidence based on past success rates per task type. Requires `learner_min_records` history entries before activating.
+
+**`routing.learner_min_records`** — How many history records the learner needs before it starts adjusting routing decisions. Default 50. Lower to 20-30 if you want faster adaptation.
+
+**`metrics.enabled`** — Set `false` to stop writing completion metrics to disk. Metrics are still readable (for existing data) but no new entries are logged.
+
+**`metrics.log_path`** — Where metrics JSONL is stored. Supports `~` for home directory. Change this to keep metrics in a project-specific location.
 
 **`welcome.cost_per_million_tokens`** — Used to estimate dollar savings in the status display. Defaults to $8/M (approximate Claude output token cost).
 
