@@ -11,7 +11,7 @@
     {
       "name": "claude-saver",
       "version": "0.1.0",
-      "source": ".",
+      "source": "./",
       "description": "Route coding tasks to local Ollama models — save tokens, keep code private, use your GPU"
     }
   ]
