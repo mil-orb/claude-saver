@@ -103,7 +103,9 @@ interface Config {
 interface SavingsInfo {
   total_local_tokens: number;
   local_tasks: number;
-  estimated_cost_saved: number;
+  gross_cost_saved: number;
+  net_cost_saved: number;
+  overhead_cost: number;
 }
 
 function loadConfig(): Config {
@@ -141,10 +143,11 @@ function loadConfig(): Config {
 function loadSavings(costPerMillionTokens: number): SavingsInfo {
   try {
     const mPath = path.join(os.homedir(), '.claude-saver', 'metrics.jsonl');
-    if (!fs.existsSync(mPath)) return { total_local_tokens: 0, local_tasks: 0, estimated_cost_saved: 0 };
+    if (!fs.existsSync(mPath)) return { total_local_tokens: 0, local_tasks: 0, gross_cost_saved: 0, net_cost_saved: 0, overhead_cost: 0 };
 
     const content = fs.readFileSync(mPath, 'utf-8') as string;
     let totalTokens = 0;
+    let totalOverhead = 0;
     let taskCount = 0;
 
     for (const line of content.split('\n')) {
@@ -153,6 +156,7 @@ function loadSavings(costPerMillionTokens: number): SavingsInfo {
         const entry = JSON.parse(line);
         if (entry.type === 'completion' && typeof entry.tokens_used === 'number') {
           totalTokens += entry.tokens_used;
+          totalOverhead += entry.cloud_overhead_tokens ?? (80 + Math.ceil(entry.tokens_used * 1.3));
           taskCount++;
         }
       } catch {
@@ -160,14 +164,18 @@ function loadSavings(costPerMillionTokens: number): SavingsInfo {
       }
     }
 
-    const costSaved = (totalTokens / 1_000_000) * costPerMillionTokens;
+    const grossCost = (totalTokens / 1_000_000) * costPerMillionTokens;
+    const overheadCost = (totalOverhead / 1_000_000) * (costPerMillionTokens / 5);
+    const netCost = grossCost - overheadCost;
     return {
       total_local_tokens: totalTokens,
       local_tasks: taskCount,
-      estimated_cost_saved: Math.round(costSaved * 100) / 100,
+      gross_cost_saved: Math.round(grossCost * 100) / 100,
+      overhead_cost: Math.round(overheadCost * 100) / 100,
+      net_cost_saved: Math.round(netCost * 100) / 100,
     };
   } catch {
-    return { total_local_tokens: 0, local_tasks: 0, estimated_cost_saved: 0 };
+    return { total_local_tokens: 0, local_tasks: 0, gross_cost_saved: 0, net_cost_saved: 0, overhead_cost: 0 };
   }
 }
 
@@ -193,9 +201,10 @@ function assembleWelcomeMessage(config: Config, health: HealthResult): string {
   if (config.welcome.show_savings) {
     const savings = loadSavings(config.welcome.cost_per_million_tokens);
     if (savings.local_tasks > 0) {
-      lines.push(`Savings: ${formatTokens(savings.total_local_tokens)} tokens locally across ${savings.local_tasks} tasks — ~$${savings.estimated_cost_saved} saved`);
+      const netSign = savings.net_cost_saved >= 0 ? '' : '-';
+      lines.push(`Savings: ${formatTokens(savings.total_local_tokens)} local tokens across ${savings.local_tasks} tasks — net ~${netSign}$${Math.abs(savings.net_cost_saved)} saved (after $${savings.overhead_cost} overhead)`);
     } else {
-      lines.push(`Savings: No local completions yet — start delegating to save tokens!`);
+      lines.push(`Savings: No local completions yet — delegate 200+ token tasks to save.`);
     }
   }
 
@@ -370,7 +379,7 @@ describe('loadSavings', () => {
 
     const result = loadSavings(8);
 
-    expect(result).toEqual({ total_local_tokens: 0, local_tasks: 0, estimated_cost_saved: 0 });
+    expect(result).toEqual({ total_local_tokens: 0, local_tasks: 0, gross_cost_saved: 0, net_cost_saved: 0, overhead_cost: 0 });
   });
 
   it('returns zeros for an empty file', () => {
@@ -379,7 +388,7 @@ describe('loadSavings', () => {
 
     const result = loadSavings(8);
 
-    expect(result).toEqual({ total_local_tokens: 0, local_tasks: 0, estimated_cost_saved: 0 });
+    expect(result).toEqual({ total_local_tokens: 0, local_tasks: 0, gross_cost_saved: 0, net_cost_saved: 0, overhead_cost: 0 });
   });
 
   it('counts completion entries and sums tokens', () => {
@@ -397,7 +406,7 @@ describe('loadSavings', () => {
     expect(result.local_tasks).toBe(2);
   });
 
-  it('calculates cost correctly: 1000 tokens at $8/M = $0.01', () => {
+  it('calculates gross cost correctly: 1000 tokens at $8/M = $0.01', () => {
     vi.mocked(fs.existsSync).mockReturnValue(true);
     vi.mocked(fs.readFileSync).mockReturnValue(
       JSON.stringify({ type: 'completion', tokens_used: 1000 })
@@ -405,10 +414,13 @@ describe('loadSavings', () => {
 
     const result = loadSavings(8);
 
-    expect(result.estimated_cost_saved).toBe(0.01);
+    expect(result.gross_cost_saved).toBe(0.01);
+    // Overhead cost is small at 1000 tokens but exists
+    expect(result.overhead_cost).toBeGreaterThanOrEqual(0);
+    expect(result.net_cost_saved).toBeLessThanOrEqual(result.gross_cost_saved);
   });
 
-  it('calculates cost correctly: 1_000_000 tokens at $8/M = $8.00', () => {
+  it('calculates gross cost correctly: 1_000_000 tokens at $8/M = $8.00', () => {
     vi.mocked(fs.existsSync).mockReturnValue(true);
     vi.mocked(fs.readFileSync).mockReturnValue(
       JSON.stringify({ type: 'completion', tokens_used: 1_000_000 })
@@ -416,7 +428,9 @@ describe('loadSavings', () => {
 
     const result = loadSavings(8);
 
-    expect(result.estimated_cost_saved).toBe(8);
+    expect(result.gross_cost_saved).toBe(8);
+    // At 1M tokens, net should be strongly positive
+    expect(result.net_cost_saved).toBeGreaterThan(0);
   });
 
   it('skips invalid JSON lines without crashing', () => {
@@ -491,10 +505,10 @@ describe('loadSavings', () => {
     );
 
     const resultAt15 = loadSavings(15);
-    expect(resultAt15.estimated_cost_saved).toBe(15);
+    expect(resultAt15.gross_cost_saved).toBe(15);
 
     const resultAt3 = loadSavings(3);
-    expect(resultAt3.estimated_cost_saved).toBe(3);
+    expect(resultAt3.gross_cost_saved).toBe(3);
   });
 });
 
@@ -635,7 +649,7 @@ describe('assembleWelcomeMessage', () => {
     const config = makeConfig({ welcome: { show_savings: true } });
     const msg = assembleWelcomeMessage(config, defaultHealth);
 
-    expect(msg).toContain('start delegating to save tokens');
+    expect(msg).toContain('delegate 200+ token tasks to save');
   });
 
   it('shows formatted savings when tasks exist', () => {
@@ -651,9 +665,9 @@ describe('assembleWelcomeMessage', () => {
     const config = makeConfig({ welcome: { show_savings: true } });
     const msg = assembleWelcomeMessage(config, defaultHealth);
 
-    expect(msg).toContain('100.0K tokens locally');
+    expect(msg).toContain('100.0K local tokens');
     expect(msg).toContain('2 tasks');
-    expect(msg).toContain('$0.8 saved');
+    expect(msg).toContain('saved (after');
   });
 
   it('omits savings line entirely when show_savings is false', () => {

@@ -30,7 +30,9 @@ Models:      {count} available ({model_names, comma-separated, max 5})
 Savings
   Tasks:     {total_tasks} total, {local_tasks} local
   Tokens:    {total_local_tokens} processed locally
-  Saved:     ~${estimated_cost_saved}
+  Gross:     ~${gross_cost_saved}
+  Overhead:  -${overhead_cost} (tool-call wrapper cost)
+  Net saved: ~${net_cost_saved}
 ```
 
 If Ollama is disconnected, show the connection error and suggest `ollama serve`.
@@ -63,13 +65,13 @@ Use `AskUserQuestion` with these options:
 After selection, call `claudesaver_level` with action `"set"` and the chosen level. Confirm the change.
 
 ### Option 2 — Change default model
-Call `claudesaver_models` with action `"list"` to get available models. Present them as options via `AskUserQuestion`. After selection, read `~/.claude-saver/config.json`, update `ollama.default_model`, and write it back. Confirm the change.
+Call `claudesaver_models` with action `"list"` to get available models. Present them as options via `AskUserQuestion`. After selection, call `claudesaver_config` with action `"set"`, key `"ollama.default_model"`, value `"{chosen_model}"`. Confirm the change.
 
 ### Option 3 — Set fallback model
-Same as option 2, but update `ollama.fallback_model`. Explain that this model is used when the primary model fails (e.g., model not loaded, OOM).
+Same as option 2, but use key `"ollama.fallback_model"`. Explain that this model is used when the primary model fails (e.g., model not loaded, OOM).
 
 ### Option 4 — Toggle metrics
-Read `~/.claude-saver/config.json`, flip `metrics.enabled`, write back. Confirm whether metrics are now enabled or disabled.
+Call `claudesaver_config` with action `"get"`, key `"metrics.enabled"` to check current state. Then call `claudesaver_config` with action `"set"`, key `"metrics.enabled"`, value `{opposite_boolean}`. Confirm whether metrics are now enabled or disabled.
 
 ### Option 5 — Reset savings
 Call `claudesaver_metrics` with action `"reset"`. Confirm the reset.

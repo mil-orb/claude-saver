@@ -19,6 +19,8 @@ export interface CompletionEntry {
   duration_ms: number;
   tool: string;
   session_id: string;
+  /** Estimated cloud tokens consumed by the tool-call wrapper overhead */
+  cloud_overhead_tokens?: number;
 }
 
 export type AnyMetricsEntry = MetricsEntry | CompletionEntry;
@@ -29,7 +31,11 @@ export interface MetricsSummary {
   cloud_tasks: number;
   total_duration_ms: number;
   total_local_tokens: number;
-  estimated_cost_saved: number;
+  total_cloud_overhead_tokens: number;
+  net_tokens_saved: number;
+  gross_cost_saved: number;
+  overhead_cost: number;
+  net_cost_saved: number;
   sessions: number;
   tools_frequency: Record<string, number>;
 }
@@ -65,6 +71,23 @@ function ensureDir(filePath: string): void {
   }
 }
 
+/**
+ * Estimate the cloud API overhead tokens for a delegation round-trip.
+ *
+ * When Claude delegates via a tool call, the overhead is:
+ * - Tool call output: ~80 tokens (the JSON tool invocation Claude generates)
+ * - Tool result input: roughly response_chars / 4 (the MCP response Claude reads back)
+ *
+ * This is the MARGINAL cost — the extra tokens beyond what Claude would
+ * have used answering directly. System prompt and conversation history
+ * exist regardless of delegation.
+ */
+export function estimateCloudOverhead(responseTokens: number): number {
+  const TOOL_CALL_OUTPUT = 80; // Fixed: Claude's tool invocation JSON
+  const RESULT_INPUT = Math.ceil(responseTokens * 1.3); // MCP wraps response in JSON + metadata
+  return TOOL_CALL_OUTPUT + RESULT_INPUT;
+}
+
 export function logCompletion(entry: {
   tokens_used: number;
   model: string;
@@ -77,6 +100,7 @@ export function logCompletion(entry: {
 
     const metricsPath = getMetricsPath();
     ensureDir(metricsPath);
+    const overhead = estimateCloudOverhead(entry.tokens_used);
     const record: CompletionEntry = {
       type: 'completion',
       timestamp: new Date().toISOString(),
@@ -85,6 +109,7 @@ export function logCompletion(entry: {
       duration_ms: entry.duration_ms,
       tool: entry.tool,
       session_id: process.env['CLAUDE_SESSION_ID'] ?? 'unknown',
+      cloud_overhead_tokens: overhead,
     };
     fs.appendFileSync(metricsPath, JSON.stringify(record) + '\n', 'utf-8');
   } catch {
@@ -101,6 +126,7 @@ export function computeSummary(entries?: AnyMetricsEntry[], costPerMillionTokens
 
   let totalDuration = 0;
   let totalLocalTokens = 0;
+  let totalCloudOverhead = 0;
   let completionCount = 0;
 
   for (const entry of metrics) {
@@ -109,6 +135,8 @@ export function computeSummary(entries?: AnyMetricsEntry[], costPerMillionTokens
     if ('type' in entry && entry.type === 'completion') {
       const comp = entry as CompletionEntry;
       totalLocalTokens += comp.tokens_used;
+      // Use recorded overhead if available, otherwise estimate from tokens_used
+      totalCloudOverhead += comp.cloud_overhead_tokens ?? estimateCloudOverhead(comp.tokens_used);
       completionCount++;
       toolsFreq[comp.tool] = (toolsFreq[comp.tool] ?? 0) + 1;
     } else if ('tools_used' in entry) {
@@ -119,8 +147,14 @@ export function computeSummary(entries?: AnyMetricsEntry[], costPerMillionTokens
     }
   }
 
-  // Estimated cost saved: tokens that ran locally instead of through cloud API
-  const estimatedCostSaved = (totalLocalTokens / 1_000_000) * costRate;
+  // Gross savings: tokens that ran locally instead of through cloud API output
+  // Cloud output costs ~5x input, so local tokens would have cost costRate as output
+  const grossCostSaved = (totalLocalTokens / 1_000_000) * costRate;
+  // Overhead cost: tool-call wrapper tokens at blended input rate (~costRate / 5)
+  // Overhead is mostly input tokens (reading tool results), which cost ~1/5 of output
+  const overheadCost = (totalCloudOverhead / 1_000_000) * (costRate / 5);
+  const netCostSaved = grossCostSaved - overheadCost;
+  const netTokensSaved = totalLocalTokens - totalCloudOverhead;
 
   return {
     total_tasks: metrics.length,
@@ -128,7 +162,11 @@ export function computeSummary(entries?: AnyMetricsEntry[], costPerMillionTokens
     cloud_tasks: 0,
     total_duration_ms: totalDuration,
     total_local_tokens: totalLocalTokens,
-    estimated_cost_saved: Math.round(estimatedCostSaved * 100) / 100,
+    total_cloud_overhead_tokens: totalCloudOverhead,
+    net_tokens_saved: netTokensSaved,
+    gross_cost_saved: Math.round(grossCostSaved * 100) / 100,
+    overhead_cost: Math.round(overheadCost * 100) / 100,
+    net_cost_saved: Math.round(netCostSaved * 100) / 100,
     sessions: sessions.size,
     tools_frequency: toolsFreq,
   };

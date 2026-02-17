@@ -263,6 +263,78 @@ server.tool(
 // ═══════════════════════════════════════════════════════════════
 
 server.tool(
+  'claudesaver_config',
+  'Read, update, or reset plugin configuration. Supports dot-notation paths like "ollama.default_model".',
+  {
+    action: z.enum(['get', 'set', 'reset']).describe('"get" reads config (optionally a specific field), "set" updates a field, "reset" restores defaults'),
+    key: z.string().optional().describe('Dot-notation config path (e.g. "ollama.default_model", "delegation_level", "metrics.enabled")'),
+    value: z.union([z.string(), z.number(), z.boolean(), z.null()]).optional().describe('Value to set (strings, numbers, booleans, or null)'),
+  },
+  async ({ action, key, value }) => {
+    try {
+      if (action === 'reset') {
+        const os = await import('os');
+        const path = await import('path');
+        const configPath = path.join(os.homedir(), '.claude-saver', 'config.json');
+        if (fs.existsSync(configPath)) {
+          fs.unlinkSync(configPath);
+        }
+        return ok({ message: 'Config reset to defaults', config: loadConfig() });
+      }
+
+      if (action === 'get') {
+        const config = loadConfig();
+        if (!key) return ok(config);
+        const val = getByPath(config as unknown as Record<string, unknown>, key);
+        if (val === undefined) return err(`Unknown config key: ${key}`);
+        return ok({ key, value: val });
+      }
+
+      if (action === 'set') {
+        if (!key) return err('key is required for set action');
+        if (value === undefined) return err('value is required for set action');
+        const config = loadConfig();
+        const success = setByPath(config as unknown as Record<string, unknown>, key, value);
+        if (!success) return err(`Cannot set config key: ${key}`);
+        saveConfig(config);
+        return ok({ key, value, message: `Set ${key} = ${JSON.stringify(value)}` });
+      }
+
+      return err(`Unknown action: ${action}`);
+    } catch (e) {
+      return err(e instanceof Error ? e.message : String(e));
+    }
+  }
+);
+
+function getByPath(obj: Record<string, unknown>, path: string): unknown {
+  const parts = path.split('.');
+  let current: unknown = obj;
+  for (const part of parts) {
+    if (current === null || current === undefined || typeof current !== 'object') return undefined;
+    current = (current as Record<string, unknown>)[part];
+  }
+  return current;
+}
+
+function setByPath(obj: Record<string, unknown>, path: string, value: unknown): boolean {
+  const DANGEROUS = new Set(['__proto__', 'constructor', 'prototype']);
+  const parts = path.split('.');
+  if (parts.some(p => DANGEROUS.has(p))) return false;
+
+  let current: Record<string, unknown> = obj;
+  for (let i = 0; i < parts.length - 1; i++) {
+    const part = parts[i];
+    if (current[part] === undefined || current[part] === null || typeof current[part] !== 'object') {
+      current[part] = {};
+    }
+    current = current[part] as Record<string, unknown>;
+  }
+  current[parts[parts.length - 1]] = value;
+  return true;
+}
+
+server.tool(
   'claudesaver_models',
   'List available Ollama models and check health status',
   {

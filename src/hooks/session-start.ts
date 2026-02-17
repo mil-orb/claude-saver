@@ -33,7 +33,9 @@ interface Config {
 interface SavingsInfo {
   total_local_tokens: number;
   local_tasks: number;
-  estimated_cost_saved: number;
+  gross_cost_saved: number;
+  net_cost_saved: number;
+  overhead_cost: number;
 }
 
 function loadConfig(): Config {
@@ -71,10 +73,11 @@ function loadConfig(): Config {
 function loadSavings(costPerMillionTokens: number): SavingsInfo {
   try {
     const metricsPath = path.join(os.homedir(), '.claude-saver', 'metrics.jsonl');
-    if (!fs.existsSync(metricsPath)) return { total_local_tokens: 0, local_tasks: 0, estimated_cost_saved: 0 };
+    if (!fs.existsSync(metricsPath)) return { total_local_tokens: 0, local_tasks: 0, gross_cost_saved: 0, net_cost_saved: 0, overhead_cost: 0 };
 
     const content = fs.readFileSync(metricsPath, 'utf-8');
     let totalTokens = 0;
+    let totalOverhead = 0;
     let taskCount = 0;
 
     for (const line of content.split('\n')) {
@@ -83,6 +86,8 @@ function loadSavings(costPerMillionTokens: number): SavingsInfo {
         const entry = JSON.parse(line);
         if (entry.type === 'completion' && typeof entry.tokens_used === 'number') {
           totalTokens += entry.tokens_used;
+          // Use recorded overhead or estimate: ~80 + tokens * 1.3
+          totalOverhead += entry.cloud_overhead_tokens ?? (80 + Math.ceil(entry.tokens_used * 1.3));
           taskCount++;
         }
       } catch {
@@ -90,14 +95,18 @@ function loadSavings(costPerMillionTokens: number): SavingsInfo {
       }
     }
 
-    const costSaved = (totalTokens / 1_000_000) * costPerMillionTokens;
+    const grossCost = (totalTokens / 1_000_000) * costPerMillionTokens;
+    const overheadCost = (totalOverhead / 1_000_000) * (costPerMillionTokens / 5);
+    const netCost = grossCost - overheadCost;
     return {
       total_local_tokens: totalTokens,
       local_tasks: taskCount,
-      estimated_cost_saved: Math.round(costSaved * 100) / 100,
+      gross_cost_saved: Math.round(grossCost * 100) / 100,
+      overhead_cost: Math.round(overheadCost * 100) / 100,
+      net_cost_saved: Math.round(netCost * 100) / 100,
     };
   } catch {
-    return { total_local_tokens: 0, local_tasks: 0, estimated_cost_saved: 0 };
+    return { total_local_tokens: 0, local_tasks: 0, gross_cost_saved: 0, net_cost_saved: 0, overhead_cost: 0 };
   }
 }
 
@@ -153,25 +162,29 @@ function getDelegationInstructions(level: number): string | null {
     case 1:
       return [
         'DELEGATION L1: Trivial tasks only → local Ollama.',
-        'claudesaver_fs → fs metadata | claudesaver_complete → docstrings, commit messages',
+        'claudesaver_fs → fs metadata | claudesaver_complete → docstrings, commit messages, boilerplate (200+ token output expected)',
+        'SKIP delegation for short Q&A, yes/no, or <200 token answers — answer directly.',
         'Escalate immediately if local output seems wrong.',
       ].join('\n');
     case 2:
       return [
         'DELEGATION L2: Routine coding tasks → local Ollama.',
         'claudesaver_fs → fs queries | claudesaver_complete → docs, comments, commits, format conversions | claudesaver_generate_code → boilerplate, scaffolding, clear-spec code | claudesaver_analyze_file → summaries, bug scanning',
-        'Cloud: architecture decisions, debugging, security review, complex reasoning, opinion requests.',
+        'SKIP delegation for short Q&A or tasks with <200 token expected output — the tool-call overhead costs more than it saves.',
+        'Cloud: architecture decisions, debugging, security review, complex reasoning.',
       ].join('\n');
     case 3:
       return [
         'DELEGATION L3: Most coding tasks → local. Delegate aggressively.',
         'claudesaver_fs → fs | claudesaver_complete or claudesaver_generate_code → all codegen, docs, tests, refactoring | claudesaver_analyze_file → analysis, review | claudesaver_batch → parallel ops',
+        'SKIP: short Q&A (<200 token output) — answer directly to avoid overhead.',
         'Cloud only: architecture decisions, complex multi-file debugging, security-critical review.',
       ].join('\n');
     case 4:
       return [
         'DELEGATION L4: Try ALL tasks locally first.',
         'claudesaver_complete → primary tool for all coding | claudesaver_fs → fs queries | claudesaver_analyze_file → file review | claudesaver_generate_code → code generation',
+        'SKIP: trivial Q&A (<100 token answers) — direct answer is cheaper.',
         'Cloud only if local output is poor or task needs broad codebase reasoning.',
       ].join('\n');
     case 5:
@@ -225,13 +238,14 @@ async function main(): Promise<void> {
     lines.push(`[Claude-Saver] Ollama connected (${health.latency_ms}ms)`);
   }
 
-  // Savings display
+  // Savings display — show honest net savings after overhead
   if (config.welcome.show_savings) {
     const savings = loadSavings(config.welcome.cost_per_million_tokens);
     if (savings.local_tasks > 0) {
-      lines.push(`Savings: ${formatTokens(savings.total_local_tokens)} tokens locally across ${savings.local_tasks} tasks — ~$${savings.estimated_cost_saved} saved`);
+      const netSign = savings.net_cost_saved >= 0 ? '' : '-';
+      lines.push(`Savings: ${formatTokens(savings.total_local_tokens)} local tokens across ${savings.local_tasks} tasks — net ~${netSign}$${Math.abs(savings.net_cost_saved)} saved (after $${savings.overhead_cost} overhead)`);
     } else {
-      lines.push(`Savings: No local completions yet — start delegating to save tokens!`);
+      lines.push(`Savings: No local completions yet — delegate 200+ token tasks to save.`);
     }
   }
 

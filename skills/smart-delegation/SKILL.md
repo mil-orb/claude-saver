@@ -35,7 +35,12 @@ You have access to Claude-Saver tools that let you offload work to local Ollama 
 
 ## When NOT to Delegate
 
+**Break-even rule: Don't delegate tasks with expected output < 200 tokens.**
+The tool-call wrapper adds ~80 output tokens + result processing overhead.
+For short answers, this overhead exceeds what you'd save.
+
 Keep these on the cloud API:
+- Short Q&A, yes/no questions, one-line answers (< 200 tokens)
 - Architecture decisions or complex design
 - Debugging subtle or multi-file issues
 - Security-sensitive code review
@@ -53,6 +58,7 @@ Keep these on the cloud API:
 
 Before each task, ask:
 1. Does this need ANY LLM? → If no, use `claudesaver_fs`
-2. Is this routine/repetitive? → Delegate locally
-3. Does it need deep reasoning or broad context? → Keep on cloud
-4. Would a wrong answer cause real problems? → Keep on cloud
+2. Will the output be < 200 tokens? → Answer directly (overhead > savings)
+3. Is this routine/repetitive with 200+ token output? → Delegate locally
+4. Does it need deep reasoning or broad context? → Keep on cloud
+5. Would a wrong answer cause real problems? → Keep on cloud

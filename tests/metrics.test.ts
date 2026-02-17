@@ -62,7 +62,8 @@ describe('computeSummary', () => {
     expect(summary.cloud_tasks).toBe(0);
     expect(summary.total_duration_ms).toBe(0);
     expect(summary.total_local_tokens).toBe(0);
-    expect(summary.estimated_cost_saved).toBe(0);
+    expect(summary.net_cost_saved).toBeLessThanOrEqual(0);
+    expect(summary.gross_cost_saved).toBe(0);
     expect(summary.sessions).toBe(0);
     expect(summary.tools_frequency).toEqual({});
   });
@@ -82,34 +83,50 @@ describe('computeSummary', () => {
     expect(summary.total_duration_ms).toBe(600);
   });
 
-  it('calculates cost correctly: 100,000 tokens at $8/M = $0.80', () => {
+  it('calculates gross cost correctly: 100,000 tokens at $8/M = $0.80', () => {
     const entries: AnyMetricsEntry[] = [
       makeCompletion({ tokens_used: 100_000 }),
     ];
 
     const summary = computeSummary(entries);
 
-    expect(summary.estimated_cost_saved).toBe(0.8);
+    expect(summary.gross_cost_saved).toBe(0.8);
+    // Net should be less than gross due to overhead
+    expect(summary.net_cost_saved).toBeLessThan(summary.gross_cost_saved);
+    expect(summary.overhead_cost).toBeGreaterThan(0);
   });
 
-  it('calculates cost correctly: 1,000,000 tokens at $8/M = $8.00', () => {
+  it('calculates gross cost correctly: 1,000,000 tokens at $8/M = $8.00', () => {
     const entries: AnyMetricsEntry[] = [
       makeCompletion({ tokens_used: 1_000_000 }),
     ];
 
     const summary = computeSummary(entries);
 
-    expect(summary.estimated_cost_saved).toBe(8);
+    expect(summary.gross_cost_saved).toBe(8);
+    // At 1M tokens, net should still be positive (overhead is proportionally small)
+    expect(summary.net_cost_saved).toBeGreaterThan(0);
   });
 
-  it('calculates cost with custom rate: 100,000 tokens at $15/M = $1.50', () => {
+  it('calculates gross cost with custom rate: 100,000 tokens at $15/M = $1.50', () => {
     const entries: AnyMetricsEntry[] = [
       makeCompletion({ tokens_used: 100_000 }),
     ];
 
     const summary = computeSummary(entries, 15);
 
-    expect(summary.estimated_cost_saved).toBe(1.5);
+    expect(summary.gross_cost_saved).toBe(1.5);
+  });
+
+  it('tracks cloud overhead tokens per delegation', () => {
+    const entries: AnyMetricsEntry[] = [
+      makeCompletion({ tokens_used: 500 }),
+    ];
+
+    const summary = computeSummary(entries);
+
+    expect(summary.total_cloud_overhead_tokens).toBeGreaterThan(0);
+    expect(summary.net_tokens_saved).toBeLessThan(summary.total_local_tokens);
   });
 
   it('handles mixed entry types — only completions count for token totals', () => {

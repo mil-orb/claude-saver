@@ -378,7 +378,7 @@ describe('Token Savings Simulation', () => {
       expect(summary.local_tasks).toBe(11);
     });
 
-    it('returns correct estimated_cost_saved at default $8/M rate', () => {
+    it('returns correct gross_cost_saved at default $8/M rate', () => {
       const allEntries = [
         ...buildCompletionEntries(morningSession, 'morning-001'),
         ...buildCompletionEntries(afternoonSession, 'afternoon-001'),
@@ -388,7 +388,10 @@ describe('Token Savings Simulation', () => {
       const summary = computeSummary(allEntries);
 
       // 6130 tokens at $8/M = (6130 / 1_000_000) * 8 = 0.04904 -> rounds to 0.05
-      expect(summary.estimated_cost_saved).toBe(0.05);
+      expect(summary.gross_cost_saved).toBe(0.05);
+      // Net should account for overhead
+      expect(summary.net_cost_saved).toBeLessThan(summary.gross_cost_saved);
+      expect(summary.overhead_cost).toBeGreaterThan(0);
     });
 
     it('multiple sessions produce correct session count', () => {

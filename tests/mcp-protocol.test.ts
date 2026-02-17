@@ -119,8 +119,8 @@ function findTool(name: string) {
 // Tool Registration
 // ---------------------------------------------------------------------------
 describe('Tool Registration', () => {
-  it('registers exactly 9 tools', () => {
-    expect(registeredTools).toHaveLength(9);
+  it('registers exactly 10 tools', () => {
+    expect(registeredTools).toHaveLength(10);
   });
 
   it('all tool names start with "claudesaver_"', () => {

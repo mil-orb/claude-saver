@@ -735,7 +735,7 @@ describe('5. MCP Server — stdio transport', { timeout: 30000 }, () => {
     const result = resp['result'] as Record<string, unknown>;
     const tools = result['tools'] as Array<Record<string, unknown>>;
 
-    expect(tools).toHaveLength(9);
+    expect(tools).toHaveLength(10);
     for (const tool of tools) {
       expect((tool['name'] as string).startsWith('claudesaver_')).toBe(true);
     }
@@ -812,7 +812,10 @@ describe('5. MCP Server — stdio transport', { timeout: 30000 }, () => {
 
     expect(data).toHaveProperty('total_tasks');
     expect(data).toHaveProperty('local_tasks');
-    expect(data).toHaveProperty('estimated_cost_saved');
+    expect(data).toHaveProperty('gross_cost_saved');
+    expect(data).toHaveProperty('net_cost_saved');
+    expect(data).toHaveProperty('overhead_cost');
+    expect(data).toHaveProperty('total_cloud_overhead_tokens');
   });
 
   it('claudesaver_metrics reset clears metrics', async () => {

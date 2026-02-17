@@ -22276,12 +22276,18 @@ function ensureDir(filePath) {
     fs4.mkdirSync(dir, { recursive: true });
   }
 }
+function estimateCloudOverhead(responseTokens) {
+  const TOOL_CALL_OUTPUT = 80;
+  const RESULT_INPUT = Math.ceil(responseTokens * 1.3);
+  return TOOL_CALL_OUTPUT + RESULT_INPUT;
+}
 function logCompletion(entry) {
   try {
     const config2 = loadConfig();
     if (!config2.metrics.enabled) return;
     const metricsPath = getMetricsPath();
     ensureDir(metricsPath);
+    const overhead = estimateCloudOverhead(entry.tokens_used);
     const record2 = {
       type: "completion",
       timestamp: (/* @__PURE__ */ new Date()).toISOString(),
@@ -22289,7 +22295,8 @@ function logCompletion(entry) {
       model: entry.model,
       duration_ms: entry.duration_ms,
       tool: entry.tool,
-      session_id: process.env["CLAUDE_SESSION_ID"] ?? "unknown"
+      session_id: process.env["CLAUDE_SESSION_ID"] ?? "unknown",
+      cloud_overhead_tokens: overhead
     };
     fs4.appendFileSync(metricsPath, JSON.stringify(record2) + "\n", "utf-8");
   } catch {
@@ -22303,12 +22310,14 @@ function computeSummary(entries, costPerMillionTokens) {
   const toolsFreq = {};
   let totalDuration = 0;
   let totalLocalTokens = 0;
+  let totalCloudOverhead = 0;
   let completionCount = 0;
   for (const entry of metrics) {
     totalDuration += entry.duration_ms;
     if ("type" in entry && entry.type === "completion") {
       const comp = entry;
       totalLocalTokens += comp.tokens_used;
+      totalCloudOverhead += comp.cloud_overhead_tokens ?? estimateCloudOverhead(comp.tokens_used);
       completionCount++;
       toolsFreq[comp.tool] = (toolsFreq[comp.tool] ?? 0) + 1;
     } else if ("tools_used" in entry) {
@@ -22318,14 +22327,21 @@ function computeSummary(entries, costPerMillionTokens) {
       }
     }
   }
-  const estimatedCostSaved = totalLocalTokens / 1e6 * costRate;
+  const grossCostSaved = totalLocalTokens / 1e6 * costRate;
+  const overheadCost = totalCloudOverhead / 1e6 * (costRate / 5);
+  const netCostSaved = grossCostSaved - overheadCost;
+  const netTokensSaved = totalLocalTokens - totalCloudOverhead;
   return {
     total_tasks: metrics.length,
     local_tasks: completionCount,
     cloud_tasks: 0,
     total_duration_ms: totalDuration,
     total_local_tokens: totalLocalTokens,
-    estimated_cost_saved: Math.round(estimatedCostSaved * 100) / 100,
+    total_cloud_overhead_tokens: totalCloudOverhead,
+    net_tokens_saved: netTokensSaved,
+    gross_cost_saved: Math.round(grossCostSaved * 100) / 100,
+    overhead_cost: Math.round(overheadCost * 100) / 100,
+    net_cost_saved: Math.round(netCostSaved * 100) / 100,
     sessions: sessions.size,
     tools_frequency: toolsFreq
   };
@@ -22577,6 +22593,71 @@ server.tool(
     }
   }
 );
+server.tool(
+  "claudesaver_config",
+  'Read, update, or reset plugin configuration. Supports dot-notation paths like "ollama.default_model".',
+  {
+    action: external_exports.enum(["get", "set", "reset"]).describe('"get" reads config (optionally a specific field), "set" updates a field, "reset" restores defaults'),
+    key: external_exports.string().optional().describe('Dot-notation config path (e.g. "ollama.default_model", "delegation_level", "metrics.enabled")'),
+    value: external_exports.union([external_exports.string(), external_exports.number(), external_exports.boolean(), external_exports.null()]).optional().describe("Value to set (strings, numbers, booleans, or null)")
+  },
+  async ({ action, key, value }) => {
+    try {
+      if (action === "reset") {
+        const os3 = await import("os");
+        const path5 = await import("path");
+        const configPath = path5.join(os3.homedir(), ".claude-saver", "config.json");
+        if (fs5.existsSync(configPath)) {
+          fs5.unlinkSync(configPath);
+        }
+        return ok({ message: "Config reset to defaults", config: loadConfig() });
+      }
+      if (action === "get") {
+        const config2 = loadConfig();
+        if (!key) return ok(config2);
+        const val = getByPath(config2, key);
+        if (val === void 0) return err(`Unknown config key: ${key}`);
+        return ok({ key, value: val });
+      }
+      if (action === "set") {
+        if (!key) return err("key is required for set action");
+        if (value === void 0) return err("value is required for set action");
+        const config2 = loadConfig();
+        const success = setByPath(config2, key, value);
+        if (!success) return err(`Cannot set config key: ${key}`);
+        saveConfig(config2);
+        return ok({ key, value, message: `Set ${key} = ${JSON.stringify(value)}` });
+      }
+      return err(`Unknown action: ${action}`);
+    } catch (e) {
+      return err(e instanceof Error ? e.message : String(e));
+    }
+  }
+);
+function getByPath(obj, path5) {
+  const parts = path5.split(".");
+  let current = obj;
+  for (const part of parts) {
+    if (current === null || current === void 0 || typeof current !== "object") return void 0;
+    current = current[part];
+  }
+  return current;
+}
+function setByPath(obj, path5, value) {
+  const DANGEROUS = /* @__PURE__ */ new Set(["__proto__", "constructor", "prototype"]);
+  const parts = path5.split(".");
+  if (parts.some((p) => DANGEROUS.has(p))) return false;
+  let current = obj;
+  for (let i = 0; i < parts.length - 1; i++) {
+    const part = parts[i];
+    if (current[part] === void 0 || current[part] === null || typeof current[part] !== "object") {
+      current[part] = {};
+    }
+    current = current[part];
+  }
+  current[parts[parts.length - 1]] = value;
+  return true;
+}
 server.tool(
   "claudesaver_models",
   "List available Ollama models and check health status",
