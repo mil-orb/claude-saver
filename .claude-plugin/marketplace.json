@@ -1,0 +1,7 @@
+{
+  "publisher": "claudesaver",
+  "repository": "https://github.com/claudesaver/claudesaver",
+  "homepage": "https://github.com/claudesaver/claudesaver#readme",
+  "categories": ["cost-optimization", "local-models", "developer-tools"],
+  "installNotes": "Requires Ollama running locally (https://ollama.ai). Run `ollama pull qwen3:8b` for a recommended starter model."
+}

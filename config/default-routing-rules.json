@@ -1,0 +1,27 @@
+{
+  "delegation_level": 2,
+  "ollama": {
+    "base_url": "http://localhost:11434",
+    "default_model": "slekrem/gpt-oss-claude-code-32k:latest",
+    "fallback_model": null,
+    "timeout_ms": 120000,
+    "health_timeout_ms": 3000
+  },
+  "routing": {
+    "use_local_triage": true,
+    "use_historical_learning": false,
+    "enable_decomposition": false,
+    "triage_model": null
+  },
+  "specialist_models": {},
+  "metrics": {
+    "enabled": true,
+    "log_path": "~/.claudesaver/metrics.jsonl"
+  },
+  "welcome": {
+    "show_savings": true,
+    "show_models": true,
+    "show_level": true,
+    "cost_per_million_tokens": 8
+  }
+}

@@ -1,0 +1,24 @@
+# Dependencies
+node_modules/
+
+# Build artifacts (keep compiled .cjs — needed for plugin install)
+*.tsbuildinfo
+dist/
+coverage/
+
+# Environment & secrets
+.env
+.env.local
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Claude Code local state
+.claude/
+CLAUDE.md
+
+# IDE
+.idea/
+.vscode/
+*.swp

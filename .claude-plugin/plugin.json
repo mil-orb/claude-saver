@@ -1,0 +1,6 @@
+{
+  "name": "claudesaver",
+  "version": "0.1.0",
+  "description": "Intelligently route coding tasks between cloud API and local Ollama models to save 60-80% on tokens",
+  "keywords": ["ollama", "local-models", "token-savings", "cost-optimization", "routing"]
+}
