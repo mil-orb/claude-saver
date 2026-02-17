@@ -10,6 +10,6 @@ All notable changes to Claude-Saver will be documented in this file.
 - Subagent-stop hook for metrics logging
 - `local-worker` subagent definition
 - `smart-delegation` skill
-- Slash commands: `/claudesaver:status`, `/claudesaver:level`, `/claudesaver:config`, `/claudesaver:benchmark`
+- Slash commands: `/claudesaver:ask`, `/claudesaver:settings`, `/claudesaver:dashboard`
 - esbuild pipeline compiling TypeScript to standalone CJS bundles
 - Config system with `~/.claude-saver/config.json` and defaults

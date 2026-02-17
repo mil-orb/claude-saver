@@ -124,9 +124,9 @@ At the default level (Level 2 — Balanced):
 | 4 | Max Local | Everything attempted locally first, escalate on poor quality |
 | 5 | Offline | All tasks local — no cloud fallback |
 
-Change your level anytime:
+Change your level anytime via the interactive settings menu:
 ```
-/claudesaver:level
+/claudesaver:settings
 ```
 
 ---
@@ -174,15 +174,9 @@ This is useful for:
 
 | Command | Description |
 |---|---|
-| `/claudesaver:settings` | Full settings dashboard — change level, model, metrics, view stats |
-| `/claudesaver:dashboard` | Open the web dashboard in your browser |
 | `/claudesaver:ask` | Run any prompt on your local model — right inside Claude Code, no terminal switching |
-| `/claudesaver:local` | Toggle Local Model Mode (switch to Level 5 and back) |
-| `/claudesaver:status` | Quick Ollama health and savings check |
-| `/claudesaver:level` | Get or set delegation level |
-| `/claudesaver:config` | Edit configuration interactively |
-| `/claudesaver:setup-statusline` | Add delegation level to your terminal status bar |
-| `/claudesaver:benchmark` | Compare local vs cloud output for a task |
+| `/claudesaver:settings` | Interactive dashboard — view status, change level, model, metrics, reset savings |
+| `/claudesaver:dashboard` | Open the web metrics dashboard in your browser |
 
 ---
 
@@ -332,7 +326,7 @@ curl http://localhost:11434/api/tags    # Should return JSON with models
 ```
 
 **Claude isn't delegating anything**
-- Check your level: `/claudesaver:level` — Level 0 means manual only
+- Check your level: `/claudesaver:settings` — Level 0 means manual only
 - Verify models: `ollama list`
 - Short tasks (<200 token output) are answered directly by design — the overhead isn't worth it
 

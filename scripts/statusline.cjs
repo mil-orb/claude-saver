@@ -6,7 +6,7 @@
  * Configure in ~/.claude/settings.json:
  *   "statusLine": { "type": "command", "command": "node /path/to/statusline.cjs" }
  *
- * Or run: /claudesaver:setup-statusline
+ * Or configure via: /claudesaver:settings
  */
 
 const fs = require('fs');
