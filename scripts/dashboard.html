@@ -187,9 +187,23 @@
 
   .tag-tool { background: rgba(108, 92, 231, 0.15); color: var(--accent); }
   .tag-model { background: rgba(116, 185, 255, 0.15); color: var(--blue); }
+  .tag-accepted { background: rgba(0, 184, 148, 0.15); color: var(--green); }
+  .tag-retried { background: rgba(253, 203, 110, 0.15); color: var(--orange); }
+  .tag-escalated { background: rgba(225, 112, 85, 0.15); color: var(--red); }
 
   .positive-cell { color: var(--green); }
   .negative-cell { color: var(--red); }
+
+  .delegation-bar {
+    display: flex;
+    height: 8px;
+    border-radius: 4px;
+    overflow: hidden;
+    margin-top: 8px;
+  }
+  .delegation-bar .seg-accepted { background: var(--green); }
+  .delegation-bar .seg-retried { background: var(--orange); }
+  .delegation-bar .seg-escalated { background: var(--red); }
 
   /* Empty state */
   .empty-state {
@@ -327,6 +341,12 @@ function renderDashboard(data) {
     ? Math.round(((data.total_local_tokens - data.total_cloud_overhead) / data.total_local_tokens) * 100)
     : 0;
 
+  const del = data.delegation || { total: 0, accepted: 0, retried_accepted: 0, escalated: 0, resolution_rate: 0, retry_rate: 0 };
+  const resRate = del.total > 0 ? Math.round(del.resolution_rate * 100) : 0;
+  const delBarAccepted = del.total > 0 ? (del.accepted / del.total * 100).toFixed(1) : 0;
+  const delBarRetried = del.total > 0 ? (del.retried_accepted / del.total * 100).toFixed(1) : 0;
+  const delBarEscalated = del.total > 0 ? (del.escalated / del.total * 100).toFixed(1) : 0;
+
   app.innerHTML = `
     <div class="kpi-grid">
       <div class="kpi">
@@ -351,6 +371,44 @@ function renderDashboard(data) {
       </div>
     </div>
 
+    ${del.total > 0 ? `
+    <div class="kpi-grid" style="margin-bottom:24px">
+      <div class="kpi">
+        <div class="kpi-label">Resolution Rate</div>
+        <div class="kpi-value ${resRate >= 80 ? 'positive' : resRate >= 50 ? 'warn' : 'negative'}">${resRate}%</div>
+        <div class="kpi-sub">${del.accepted + del.retried_accepted} of ${del.total} resolved locally</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Quality Gate</div>
+        <div class="kpi-value positive">${del.accepted}</div>
+        <div class="kpi-sub">Accepted on first pass</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Retried</div>
+        <div class="kpi-value warn">${del.retried_accepted}</div>
+        <div class="kpi-sub">Passed after retry</div>
+      </div>
+      <div class="kpi">
+        <div class="kpi-label">Escalated</div>
+        <div class="kpi-value ${del.escalated > 0 ? 'negative' : 'positive'}">${del.escalated}</div>
+        <div class="kpi-sub">Sent to cloud</div>
+      </div>
+    </div>
+    <div class="card" style="margin-bottom:24px;padding:16px 20px">
+      <div class="card-title" style="margin-bottom:8px">Quality Gate Breakdown</div>
+      <div class="delegation-bar">
+        <div class="seg-accepted" style="width:${delBarAccepted}%"></div>
+        <div class="seg-retried" style="width:${delBarRetried}%"></div>
+        <div class="seg-escalated" style="width:${delBarEscalated}%"></div>
+      </div>
+      <div style="display:flex;gap:16px;margin-top:8px;font-size:12px;color:var(--text-dim)">
+        <span style="color:var(--green)">${delBarAccepted}% accepted</span>
+        <span style="color:var(--orange)">${delBarRetried}% retried</span>
+        <span style="color:var(--red)">${delBarEscalated}% escalated</span>
+      </div>
+    </div>
+    ` : ''}
+
     <div class="chart-full card">
       <div class="card-title">Savings Over Time</div>
       <div class="chart-container tall"><canvas id="savingsChart"></canvas></div>
@@ -372,7 +430,7 @@ function renderDashboard(data) {
       <div class="table-wrap">
         <table>
           <thead>
-            <tr><th>When</th><th>Tool</th><th>Model</th><th>Local Tokens</th><th>Overhead</th><th>Net</th><th>Duration</th></tr>
+            <tr><th>When</th><th>Tool</th><th>Model</th><th>Status</th><th>Local Tokens</th><th>Overhead</th><th>Net</th><th>Duration</th></tr>
           </thead>
           <tbody id="recentBody"></tbody>
         </table>
@@ -481,6 +539,14 @@ function renderCharts(data) {
   });
 }
 
+function statusTag(qs) {
+  if (!qs) return '<span class="tag tag-model">legacy</span>';
+  if (qs === 'accepted') return '<span class="tag tag-accepted">accepted</span>';
+  if (qs === 'retried_accepted') return '<span class="tag tag-retried">retried</span>';
+  if (qs === 'escalated') return '<span class="tag tag-escalated">escalated</span>';
+  return '<span class="tag tag-model">' + qs + '</span>';
+}
+
 function renderTable(recent) {
   const body = document.getElementById('recentBody');
   if (!body) return;
@@ -492,6 +558,7 @@ function renderTable(recent) {
       <td>${timeAgo(r.timestamp)}</td>
       <td><span class="tag tag-tool">${r.tool.replace('claudesaver_', '')}</span></td>
       <td><span class="tag tag-model">${r.model.length > 20 ? r.model.slice(0, 20) + '...' : r.model}</span></td>
+      <td>${statusTag(r.quality_status)}</td>
       <td>${fmt(r.tokens)}</td>
       <td>${fmt(r.overhead)}</td>
       <td class="${netClass}">${net >= 0 ? '+' : ''}${fmt(net)}</td>

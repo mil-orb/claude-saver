@@ -1,24 +1,21 @@
 /**
  * Claude-Saver Dashboard Server
  * Lightweight HTTP server serving the metrics dashboard on localhost:37888.
- * Reads ~/.claude-saver/metrics.jsonl and config.json for live data.
+ * Reads metrics.jsonl (via shared config) and config.json for live data.
  */
 
 import * as http from 'http';
 import * as fs from 'fs';
 import * as path from 'path';
-import * as os from 'os';
+import { loadConfig as loadAppConfig, resolvePath } from '../mcp-server/config.js';
 
 const PORT = parseInt(process.env['CLAUDE_SAVER_DASHBOARD_PORT'] ?? '37888', 10);
 const HOST = '127.0.0.1';
 
-function getDataDir(): string {
-  return path.join(os.homedir(), '.claude-saver');
-}
-
 function loadMetricsData(): unknown[] {
   try {
-    const metricsPath = path.join(getDataDir(), 'metrics.jsonl');
+    const config = loadAppConfig();
+    const metricsPath = resolvePath(config.metrics.log_path);
     if (!fs.existsSync(metricsPath)) return [];
     const content = fs.readFileSync(metricsPath, 'utf-8');
     return content
@@ -34,11 +31,9 @@ function loadMetricsData(): unknown[] {
   }
 }
 
-function loadConfig(): Record<string, unknown> {
+function loadConfigRaw(): Record<string, unknown> {
   try {
-    const configPath = path.join(getDataDir(), 'config.json');
-    if (!fs.existsSync(configPath)) return {};
-    return JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+    return loadAppConfig() as unknown as Record<string, unknown>;
   } catch {
     return {};
   }
@@ -46,6 +41,17 @@ function loadConfig(): Record<string, unknown> {
 
 function estimateOverhead(tokensUsed: number): number {
   return 80 + Math.ceil(tokensUsed * 1.3);
+}
+
+interface DelegationStats {
+  total: number;
+  accepted: number;
+  retried_accepted: number;
+  escalated: number;
+  resolution_rate: number;
+  retry_rate: number;
+  avg_attempts: number;
+  total_delegation_tokens: number;
 }
 
 interface SummaryData {
@@ -60,8 +66,9 @@ interface SummaryData {
   sessions: number;
   tools: Record<string, number>;
   timeline: Array<{ date: string; tokens: number; overhead: number; tasks: number }>;
-  recent: Array<{ timestamp: string; tool: string; model: string; tokens: number; overhead: number; duration_ms: number }>;
+  recent: Array<{ timestamp: string; tool: string; model: string; tokens: number; overhead: number; duration_ms: number; quality_status?: string; attempt_count?: number }>;
   models: Record<string, number>;
+  delegation: DelegationStats;
 }
 
 function detectModelCostRate(): number | null {
@@ -74,23 +81,34 @@ function detectModelCostRate(): number | null {
 
 function computeDashboardData(): SummaryData {
   const entries = loadMetricsData();
-  const config = loadConfig();
-  const configRate = (config as { welcome?: { cost_per_million_tokens?: number } })?.welcome?.cost_per_million_tokens ?? 8;
+  const config = loadAppConfig();
+  const configRate = config.welcome.cost_per_million_tokens;
   const costRate = detectModelCostRate() ?? configRate;
 
   let totalLocalTokens = 0;
   let totalOverhead = 0;
-  let completionCount = 0;
+  let taskCount = 0;
   const sessions = new Set<string>();
   const tools: Record<string, number> = {};
   const models: Record<string, number> = {};
   const dailyMap = new Map<string, { tokens: number; overhead: number; tasks: number }>();
   const recent: SummaryData['recent'] = [];
 
+  // Delegation tracking
+  let delAccepted = 0;
+  let delRetried = 0;
+  let delEscalated = 0;
+  let delTotalAttempts = 0;
+  let delTotalTokens = 0;
+
   for (const entry of entries as Array<Record<string, unknown>>) {
     if (typeof entry.session_id === 'string') sessions.add(entry.session_id);
 
-    if (entry.type === 'completion' && typeof entry.tokens_used === 'number') {
+    const entryType = entry.type as string;
+    const isCompletion = entryType === 'completion';
+    const isDelegation = entryType === 'delegation';
+
+    if ((isCompletion || isDelegation) && typeof entry.tokens_used === 'number') {
       const tokens = entry.tokens_used as number;
       const overhead = (typeof entry.cloud_overhead_tokens === 'number')
         ? entry.cloud_overhead_tokens as number
@@ -98,7 +116,7 @@ function computeDashboardData(): SummaryData {
 
       totalLocalTokens += tokens;
       totalOverhead += overhead;
-      completionCount++;
+      taskCount++;
 
       const tool = (entry.tool as string) ?? 'unknown';
       tools[tool] = (tools[tool] ?? 0) + 1;
@@ -123,7 +141,19 @@ function computeDashboardData(): SummaryData {
         tokens,
         overhead,
         duration_ms: (entry.duration_ms as number) ?? 0,
+        quality_status: isDelegation ? (entry.quality_status as string) : undefined,
+        attempt_count: isDelegation ? (entry.attempt_count as number) : undefined,
       });
+
+      // Delegation-specific stats
+      if (isDelegation) {
+        const qs = entry.quality_status as string;
+        if (qs === 'accepted') delAccepted++;
+        else if (qs === 'retried_accepted') delRetried++;
+        else if (qs === 'escalated') delEscalated++;
+        delTotalAttempts += (entry.attempt_count as number) ?? 1;
+        delTotalTokens += tokens;
+      }
     }
   }
 
@@ -139,9 +169,11 @@ function computeDashboardData(): SummaryData {
   // Keep only last 50 recent, reverse for newest-first
   const recentSlice = recent.slice(-50).reverse();
 
+  const delTotal = delAccepted + delRetried + delEscalated;
+
   return {
     total_tasks: entries.length,
-    local_tasks: completionCount,
+    local_tasks: taskCount,
     total_local_tokens: totalLocalTokens,
     total_cloud_overhead: totalOverhead,
     net_tokens_saved: totalLocalTokens - totalOverhead,
@@ -153,6 +185,16 @@ function computeDashboardData(): SummaryData {
     timeline,
     recent: recentSlice,
     models,
+    delegation: {
+      total: delTotal,
+      accepted: delAccepted,
+      retried_accepted: delRetried,
+      escalated: delEscalated,
+      resolution_rate: delTotal > 0 ? (delAccepted + delRetried) / delTotal : 0,
+      retry_rate: delTotal > 0 ? (delRetried + delEscalated) / delTotal : 0,
+      avg_attempts: delTotal > 0 ? delTotalAttempts / delTotal : 0,
+      total_delegation_tokens: delTotalTokens,
+    },
   };
 }
 
@@ -187,7 +229,7 @@ const server = http.createServer((req, res) => {
   }
 
   if (url.pathname === '/api/config') {
-    const config = loadConfig();
+    const config = loadConfigRaw();
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify(config));
     return;
