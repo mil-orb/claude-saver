@@ -2,8 +2,8 @@
 /**
  * UserPromptSubmit hook — intercepts user prompts and handles local commands.
  *
- * Detects prefixes like "cs ask", "ask local", etc. and runs them through
- * a local Claude Code instance pointed at Ollama (zero API tokens).
+ * Detects prefixes like "cs ask", "ask local", etc. and sends them directly
+ * to the local Ollama model (zero API tokens).
  *
  * For non-matching prompts, exits silently with no output.
  * MUST: exit 0 always, output valid JSON or nothing, never block.
@@ -72,22 +72,64 @@ function matchCommand(prompt: string): { command: string; args: string } | null 
   return null;
 }
 
-function runLocalClaude(prompt: string, config: Config): string {
+/**
+ * Extract a usable response from a thinking model's thinking field
+ * when the content field is empty.
+ */
+function extractResponseFromThinking(thinking: string): string {
+  const codeBlockMatch = thinking.match(/```[\w]*\n([\s\S]*?)```/);
+  if (codeBlockMatch) return codeBlockMatch[0];
+
+  const paragraphs = thinking.split('\n\n').filter(p => p.trim().length > 20);
+  if (paragraphs.length > 0) return paragraphs[paragraphs.length - 1].trim();
+
+  return thinking;
+}
+
+/**
+ * Call Ollama's /api/chat endpoint directly.
+ * This replaces the broken `claude -p` approach which failed because
+ * Ollama doesn't implement the Anthropic Messages API.
+ */
+async function runOllamaChat(prompt: string, config: Config): Promise<string> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 120_000);
+
   try {
-    const result = execFileSync('claude', ['-p', prompt], {
-      env: {
-        ...process.env,
-        ANTHROPIC_BASE_URL: config.ollama.base_url,
-        ANTHROPIC_MODEL: config.ollama.default_model,
-        // Prevent nested session detection
-        CLAUDECODE: '',
-      },
-      timeout: 120000,
-      maxBuffer: 1024 * 1024, // 1MB
-      encoding: 'utf-8',
+    const response = await fetch(`${config.ollama.base_url}/api/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      signal: controller.signal,
+      body: JSON.stringify({
+        model: config.ollama.default_model,
+        messages: [{ role: 'user', content: prompt }],
+        stream: false,
+        options: {
+          temperature: 0.3,
+          num_predict: 4096,
+        },
+      }),
     });
-    return result.trim();
+    clearTimeout(timer);
+
+    if (!response.ok) {
+      const text = await response.text();
+      return `[Ollama error ${response.status}: ${text}]`;
+    }
+
+    const data = await response.json() as {
+      message?: { content?: string; thinking?: string };
+    };
+
+    let result = data.message?.content ?? '';
+    // Thinking models may put the answer in the thinking field
+    if (!result.trim() && data.message?.thinking) {
+      result = extractResponseFromThinking(data.message.thinking);
+    }
+
+    return result || '[Empty response from local model]';
   } catch (err) {
+    clearTimeout(timer);
     const msg = err instanceof Error ? err.message : String(err);
     return `[Local model error: ${msg}]`;
   }
@@ -217,7 +259,7 @@ async function main(): Promise<void> {
       if (!match.args) {
         result = 'Usage: cs ask "your question here"';
       } else {
-        result = runLocalClaude(match.args, config);
+        result = await runOllamaChat(match.args, config);
       }
       break;
     }

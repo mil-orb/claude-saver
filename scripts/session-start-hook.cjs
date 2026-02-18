@@ -67,7 +67,7 @@ function loadSavings(costPerMillionTokens) {
       if (!line.trim()) continue;
       try {
         const entry = JSON.parse(line);
-        if (entry.type === "completion" && typeof entry.tokens_used === "number") {
+        if ((entry.type === "completion" || entry.type === "delegation") && typeof entry.tokens_used === "number") {
           totalTokens += entry.tokens_used;
           totalOverhead += entry.cloud_overhead_tokens ?? 80 + Math.ceil(entry.tokens_used * 1.3);
           taskCount++;

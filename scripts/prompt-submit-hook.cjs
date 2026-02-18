@@ -68,23 +68,44 @@ function matchCommand(prompt) {
   }
   return null;
 }
-function runLocalClaude(prompt, config) {
+function extractResponseFromThinking(thinking) {
+  const codeBlockMatch = thinking.match(/```[\w]*\n([\s\S]*?)```/);
+  if (codeBlockMatch) return codeBlockMatch[0];
+  const paragraphs = thinking.split("\n\n").filter((p) => p.trim().length > 20);
+  if (paragraphs.length > 0) return paragraphs[paragraphs.length - 1].trim();
+  return thinking;
+}
+async function runOllamaChat(prompt, config) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 12e4);
   try {
-    const result = (0, import_child_process.execFileSync)("claude", ["-p", prompt], {
-      env: {
-        ...process.env,
-        ANTHROPIC_BASE_URL: config.ollama.base_url,
-        ANTHROPIC_MODEL: config.ollama.default_model,
-        // Prevent nested session detection
-        CLAUDECODE: ""
-      },
-      timeout: 12e4,
-      maxBuffer: 1024 * 1024,
-      // 1MB
-      encoding: "utf-8"
+    const response = await fetch(`${config.ollama.base_url}/api/chat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      signal: controller.signal,
+      body: JSON.stringify({
+        model: config.ollama.default_model,
+        messages: [{ role: "user", content: prompt }],
+        stream: false,
+        options: {
+          temperature: 0.3,
+          num_predict: 4096
+        }
+      })
     });
-    return result.trim();
+    clearTimeout(timer);
+    if (!response.ok) {
+      const text = await response.text();
+      return `[Ollama error ${response.status}: ${text}]`;
+    }
+    const data = await response.json();
+    let result = data.message?.content ?? "";
+    if (!result.trim() && data.message?.thinking) {
+      result = extractResponseFromThinking(data.message.thinking);
+    }
+    return result || "[Empty response from local model]";
   } catch (err) {
+    clearTimeout(timer);
     const msg = err instanceof Error ? err.message : String(err);
     return `[Local model error: ${msg}]`;
   }
@@ -201,7 +222,7 @@ async function main() {
       if (!match.args) {
         result = 'Usage: cs ask "your question here"';
       } else {
-        result = runLocalClaude(match.args, config);
+        result = await runOllamaChat(match.args, config);
       }
       break;
     }
